@@ -1,0 +1,33 @@
+[package]
+name = "rubrica-spike"
+version = "0.0.1"
+description = "Spike de de-risk: firmar un PDF en PAdES-B y comprobar que un validador oficial lo acepta"
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+publish = false
+
+[[bin]]
+name = "rubrica-spike"
+path = "src/main.rs"
+
+[dependencies]
+# Manipulación de PDF: insertar /ByteRange + /Contents (firma incremental)
+lopdf = "0.34"
+
+# CMS / PKCS#7 detached con atributos firmados ETSI (el corazón de PAdES)
+cms = { version = "0.2", features = ["builder"] }
+x509-cert = "0.2"
+rsa = { version = "0.9", features = ["sha2"] }
+sha2 = "0.10"
+der = "0.7"
+const-oid = { version = "0.9", features = ["db"] }
+
+# Carga del certificado de prueba PKCS#12 (.p12)
+p12 = "0.6"
+
+# CLI mínima + errores
+anyhow = "1"
+clap = { version = "4", features = ["derive"] }

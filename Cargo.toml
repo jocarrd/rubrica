@@ -1,0 +1,19 @@
+[workspace]
+resolver = "2"
+members = [
+    "spike",
+    # Futuro (tras validar el spike):
+    # "crates/rubrica-core",
+    # "crates/rubrica-cli",
+]
+
+[workspace.package]
+edition = "2021"
+license = "MIT OR Apache-2.0"
+authors = ["Jorge Carrera <jorgecarrera98d@gmail.com>"]
+repository = "https://github.com/jocarrd/rubrica"
+rust-version = "1.75"
+
+[profile.release]
+lto = true
+strip = true
