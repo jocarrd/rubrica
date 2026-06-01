@@ -40,6 +40,32 @@ pub fn parse(uri: &str) -> Invocation {
     }
 }
 
+const CARFIRMA_PREFIX: &str = "cfStr]";
+const SEP: char = ']';
+
+/// Extrae la URL del servidor de firma embebida en el `id` de carFirma.
+/// Formato: `cfStr]<urlBase>]<id>`.
+pub fn url_base_from_id(id: &str) -> Option<String> {
+    if !id.starts_with(CARFIRMA_PREFIX) {
+        return None;
+    }
+    let first = id.find(SEP)?;
+    let last = id.rfind(SEP)?;
+    if last <= first + 1 {
+        return None;
+    }
+    Some(id[first + 1..last].to_string())
+}
+
+/// Extrae el identificador de sesión real del `id` de carFirma.
+pub fn id_from_carfirma_string(id: &str) -> Option<String> {
+    if !id.starts_with(CARFIRMA_PREFIX) {
+        return Some(id.to_string());
+    }
+    let last = id.rfind(SEP)?;
+    Some(id[last + 1..].to_string())
+}
+
 fn parse_query(query: &str) -> HashMap<String, String> {
     let mut params = HashMap::new();
     if query.is_empty() {
@@ -129,5 +155,21 @@ mod tests {
     fn url_decode_porcentajes() {
         assert_eq!(url_decode("a%20b%2Bc"), "a b+c");
         assert_eq!(url_decode("https%3A%2F%2Fx.es"), "https://x.es");
+    }
+
+    #[test]
+    fn extrae_servidor_y_id_del_carfirma_string() {
+        let id = "cfStr]https://firmadigital.larioja.org/afirma-server]1_ABCD1234";
+        assert_eq!(
+            url_base_from_id(id).as_deref(),
+            Some("https://firmadigital.larioja.org/afirma-server")
+        );
+        assert_eq!(id_from_carfirma_string(id).as_deref(), Some("1_ABCD1234"));
+    }
+
+    #[test]
+    fn id_sin_prefijo_se_devuelve_tal_cual() {
+        assert_eq!(url_base_from_id("ABC123"), None);
+        assert_eq!(id_from_carfirma_string("ABC123").as_deref(), Some("ABC123"));
     }
 }

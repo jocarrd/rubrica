@@ -22,20 +22,34 @@ fn main() {
 
 fn handle_url(url: &str) {
     let invocation = protocol::parse(url);
-    println!("Invocación recibida desde la sede:");
-    println!("  operación: {}", invocation.operation);
+    let mut report = String::new();
+    report.push_str("=== Invocación recibida desde la sede ===\n");
+    report.push_str(&format!("URL completa:\n{url}\n\n"));
+    report.push_str(&format!("operación: {}\n", invocation.operation));
     if let Some(id) = &invocation.id {
-        println!("  id de sesión: {id}");
+        report.push_str(&format!("id (crudo): {id}\n"));
+        if let Some(base) = protocol::url_base_from_id(id) {
+            report.push_str(&format!("servidor de firma (urlBase): {base}\n"));
+        }
+        if let Some(real_id) = protocol::id_from_carfirma_string(id) {
+            report.push_str(&format!("id de sesión: {real_id}\n"));
+        }
     }
     if let Some(fmt) = &invocation.format {
-        println!("  formato: {fmt}");
+        report.push_str(&format!("formato: {fmt}\n"));
     }
-    log_invocation(url);
+
+    print!("{report}");
+    log_invocation(&report);
 }
 
-fn log_invocation(url: &str) {
-    let path = std::env::temp_dir().join("rubrica-invocacion.log");
-    let _ = std::fs::write(&path, url);
+fn log_invocation(report: &str) {
+    let path = format!("{}/.rubrica-invocacion.log", env_home());
+    let _ = std::fs::write(&path, report);
+}
+
+fn env_home() -> String {
+    std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string())
 }
 
 fn serve() {
