@@ -25,6 +25,9 @@ pub enum Error {
 
     #[error("la firma no cabe en el espacio reservado")]
     SignatureTooLarge,
+
+    #[error("autoridad de sellado de tiempo: {0}")]
+    Tsa(String),
 }
 
 pub type Result<T> = std::result::Result<T, Error>;

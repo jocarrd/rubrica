@@ -38,6 +38,12 @@ struct SignArgs {
 
     #[arg(long)]
     out: PathBuf,
+
+    #[arg(long)]
+    timestamp: bool,
+
+    #[arg(long)]
+    tsa: Option<String>,
 }
 
 fn main() -> Result<()> {
@@ -89,10 +95,12 @@ fn sign(args: SignArgs) -> Result<()> {
     let input =
         std::fs::read(&args.r#in).with_context(|| format!("leyendo {}", args.r#in.display()))?;
 
-    let signed = if is_pdf(&input) {
-        formats::pades::sign(&input, &identity)?
-    } else {
-        formats::cades::sign(&input, &identity)?
+    let tsa = args.tsa.as_deref();
+    let signed = match (is_pdf(&input), args.timestamp) {
+        (true, false) => formats::pades::sign(&input, &identity)?,
+        (true, true) => formats::pades::sign_timestamped(&input, &identity, tsa)?,
+        (false, false) => formats::cades::sign(&input, &identity)?,
+        (false, true) => formats::cades::sign_timestamped(&input, &identity, tsa)?,
     };
 
     if let Some(parent) = args.out.parent() {

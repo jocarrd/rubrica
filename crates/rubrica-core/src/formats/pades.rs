@@ -12,6 +12,13 @@ pub fn sign(pdf: &[u8], identity: &Identity) -> Result<Vec<u8>> {
     prepared.embed(&signature)
 }
 
+pub fn sign_timestamped(pdf: &[u8], identity: &Identity, tsa_url: Option<&str>) -> Result<Vec<u8>> {
+    let prepared = Prepared::build(pdf)?;
+    let digest = cms::sha256(&prepared.signed_bytes());
+    let signature = cms::signed_data_detached_timestamped(&digest, identity, tsa_url)?;
+    prepared.embed(&signature)
+}
+
 pub fn verify(pdf: &[u8]) -> Result<Report> {
     let (content, signature) = extract(pdf)?;
     verify_detached(&content, &signature)
