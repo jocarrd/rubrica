@@ -28,7 +28,19 @@ buena experiencia de uso y un empaquetado que simplemente funciona.
 | `rubrica-core` | Núcleo de firma y validación. Toda la lógica, sin interfaz. |
 | `rubrica-cli` | Interfaz de línea de comandos sobre el núcleo. |
 | `rubrica-gui` | Interfaz web local servida por el propio binario. |
-| `afirma-bridge` | Servidor local del protocolo `afirma://` para que las sedes detecten el cliente. |
+| `afirma-bridge` | Integración con las sedes: manejador de los protocolos `carfirma://` y `afirma://` y servidor local. |
+
+## Integración con las sedes
+
+Para que al pulsar «Firmar» en una sede se abra Rúbrica en lugar de AutoFirma o
+carFirma, regístrala como manejador de los protocolos:
+
+```bash
+crates/afirma-bridge/install-handler.sh
+```
+
+Esto asocia los esquemas `carfirma://` y `afirma://` a Rúbrica mediante el mismo
+mecanismo de escritorio que usa el cliente oficial.
 
 ## Instalación
 

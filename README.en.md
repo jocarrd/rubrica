@@ -27,7 +27,19 @@ no Java, good UX, and packaging that just works.
 | `rubrica-core` | Signing and validation core. All logic, no UI. |
 | `rubrica-cli` | Command-line interface over the core. |
 | `rubrica-gui` | Local web interface served by the binary itself. |
-| `afirma-bridge` | Local `afirma://` protocol server so portals detect the client. |
+| `afirma-bridge` | Portal integration: handler for the `carfirma://` and `afirma://` protocols and local server. |
+
+## Portal integration
+
+So that clicking "Sign" on a portal opens Rúbrica instead of AutoFirma or carFirma,
+register it as the protocol handler:
+
+```bash
+crates/afirma-bridge/install-handler.sh
+```
+
+This associates the `carfirma://` and `afirma://` schemes with Rúbrica using the
+same desktop mechanism as the official client.
 
 ## Installation
 
