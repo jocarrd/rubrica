@@ -21,6 +21,15 @@ buena experiencia de uso y un empaquetado que simplemente funciona.
 - Verificación de firmas con detección de documentos manipulados.
 - Binario nativo de 64 bits, sin dependencias de Java.
 
+## Compatibilidad con sedes
+
+| Comunidad | Estado |
+|-----------|--------|
+| **La Rioja** (carFirma) | Integración verificada: la sede lanza Rúbrica vía `carfirma://`, que interpreta la invocación y se comunica con el servidor oficial de firma. |
+
+El resto de comunidades autónomas usan la misma plataforma @firma y se irán
+verificando una a una.
+
 ## Componentes
 
 | Componente | Descripción |

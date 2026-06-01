@@ -20,6 +20,15 @@ no Java, good UX, and packaging that just works.
 - Signature verification with tampering detection.
 - Native 64-bit binary, no Java dependency.
 
+## Portal compatibility
+
+| Region | Status |
+|--------|--------|
+| **La Rioja** (carFirma) | Integration verified: the portal launches Rúbrica via `carfirma://`, which parses the invocation and communicates with the official signing server. |
+
+The remaining autonomous communities use the same @firma platform and will be
+verified one by one.
+
 ## Components
 
 | Component | Description |
