@@ -16,47 +16,95 @@
     min-height: 100vh;
     align-items: center;
     justify-content: center;
+    padding: 24px;
   }
   .card {
     background: #fff;
-    border-radius: 16px;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.08);
-    padding: 36px 40px;
+    border-radius: 18px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.10);
+    padding: 32px 36px;
     width: 100%;
-    max-width: 520px;
+    max-width: 460px;
   }
-  h1 { margin: 0 0 4px; font-size: 24px; }
-  .sub { margin: 0 0 24px; color: #666; font-size: 14px; }
-  .row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #eee; font-size: 14px; }
-  .row .k { color: #666; }
-  .row .v { font-weight: 600; text-align: right; word-break: break-all; max-width: 60%; }
-  .badge { display: inline-block; padding: 4px 10px; border-radius: 999px; background: #e7f6ec; color: #1b7a3d; font-size: 13px; font-weight: 600; margin-top: 16px; }
+  h1 { margin: 0 0 2px; font-size: 24px; letter-spacing: -0.02em; }
+  .sub { margin: 0 0 20px; color: #888; font-size: 14px; }
+  .doc {
+    background: #f6f8fc; border: 1px solid #e8ecf3; border-radius: 12px;
+    padding: 12px 14px; font-size: 13px; color: #44506b; margin-bottom: 22px;
+  }
+  .label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: #99a; margin: 0 0 10px; }
+  .cert {
+    display: flex; align-items: center; gap: 12px;
+    border: 1.5px solid #e3e6ec; border-radius: 12px;
+    padding: 13px 15px; margin-bottom: 10px; cursor: pointer;
+    transition: border-color .12s, background .12s;
+  }
+  .cert:hover { border-color: #b9c2d6; }
+  .cert.sel { border-color: #2563eb; background: #f0f5ff; }
+  .cert .ico { width: 34px; height: 34px; border-radius: 9px; background: #e7ecf6; display: flex; align-items: center; justify-content: center; font-size: 17px; flex-shrink: 0; }
+  .cert.sel .ico { background: #2563eb; }
+  .cert .nm { flex: 1; font-size: 14px; font-weight: 600; word-break: break-word; }
+  .cert .ck { width: 20px; height: 20px; flex-shrink: 0; opacity: 0; color: #2563eb; font-weight: 700; }
+  .cert.sel .ck { opacity: 1; }
+  .empty { color: #b42318; font-size: 14px; padding: 14px; background: #fdecec; border-radius: 10px; }
+  input[type=password] {
+    width: 100%; padding: 12px 14px; border: 1.5px solid #e3e6ec; border-radius: 12px;
+    font-size: 14px; margin-top: 4px; background: #fafbfc;
+  }
+  button {
+    width: 100%; margin-top: 20px; padding: 14px; border: 0; border-radius: 12px;
+    background: #2563eb; color: #fff; font-size: 15px; font-weight: 700; cursor: pointer;
+    transition: opacity .12s;
+  }
+  button:disabled { opacity: .45; cursor: default; }
   details { margin-top: 18px; }
-  summary { cursor: pointer; color: #2563eb; font-size: 13px; }
-  pre { background: #fafbfc; border: 1px solid #eee; border-radius: 8px; padding: 12px; font-size: 12px; overflow-x: auto; }
+  summary { cursor: pointer; color: #98a; font-size: 12px; }
+  pre { background: #fafbfc; border: 1px solid #eee; border-radius: 8px; padding: 12px; font-size: 11px; overflow-x: auto; color: #667; }
 </style>
 </head>
 <body>
   <div class="card">
     <h1>Rúbrica</h1>
-    <p class="sub">Solicitud de firma recibida desde la sede electrónica</p>
+    <p class="sub">Solicitud de firma de una sede electrónica</p>
 
-    <div class="row"><span class="k">Operación</span><span class="v">{{OPERACION}}</span></div>
-    <div class="row"><span class="k">Servidor</span><span class="v">{{SERVIDOR}}</span></div>
-    <div class="row"><span class="k">Sesión</span><span class="v">{{SESION}}</span></div>
+    <div class="doc">📄 Operación <b>{{OPERACION}}</b> · servidor <b>{{SERVIDOR}}</b></div>
 
-    <span class="badge">Invocación recibida correctamente</span>
+    <p class="label">Elige tu certificado</p>
+    <div id="lista">{{OPCIONES_CERT}}</div>
 
-    <label for="cert" style="display:block;margin:22px 0 6px;font-size:13px;font-weight:600;">Certificado para firmar</label>
-    <select id="cert" style="width:100%;padding:10px 12px;border:1px solid #d0d3d8;border-radius:8px;font-size:14px;background:#fafbfc;">
-      {{OPCIONES_CERT}}
-    </select>
-    <button id="firmar" style="width:100%;margin-top:16px;padding:13px;border:0;border-radius:10px;background:#2563eb;color:#fff;font-size:15px;font-weight:600;cursor:pointer;">Firmar</button>
+    <input type="password" id="pass" placeholder="Contraseña del certificado" autocomplete="off">
+    <button id="firmar" disabled>Firmar</button>
 
     <details>
-      <summary>Ver detalle técnico</summary>
+      <summary>Detalle técnico</summary>
       <pre>{{DETALLE}}</pre>
     </details>
   </div>
+
+<script>
+  const certs = document.querySelectorAll('.cert');
+  const btn = document.getElementById('firmar');
+  let elegido = null;
+  certs.forEach((c) => {
+    c.addEventListener('click', () => {
+      certs.forEach((x) => x.classList.remove('sel'));
+      c.classList.add('sel');
+      elegido = c.dataset.ruta;
+      btn.disabled = false;
+    });
+  });
+  btn.addEventListener('click', () => {
+    btn.textContent = 'Firmando…';
+    btn.disabled = true;
+    const pass = document.getElementById('pass').value;
+    fetch('/firmar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ certificado: elegido, password: pass }),
+    }).then((r) => r.json()).then((d) => {
+      btn.textContent = d.ok ? 'Firmado ✓' : 'Error al firmar';
+    }).catch(() => { btn.textContent = 'Error de conexión'; });
+  });
+</script>
 </body>
 </html>

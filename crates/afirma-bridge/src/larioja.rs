@@ -29,6 +29,21 @@ impl Cliente {
         format!("{}/{PATH_RAIZ}/{path}", self.url_base)
     }
 
+    /// Descarga el PDF a firmar siguiendo el flujo real de la sede:
+    /// `origen/{sesion}` da los metadatos (incluido el id del documento),
+    /// y `origen/{idDocumento}` devuelve el PDF en base64.
+    pub fn documento_a_firmar(&self, sesion: &str) -> Option<Vec<u8>> {
+        let meta_b64 = contenido_de(&self.url(&format!("origen/{sesion}")))?;
+        let meta = decode_b64(&meta_b64)?;
+        let meta_txt = String::from_utf8_lossy(&meta);
+        let doc_id = meta_txt.rsplit('|').next()?.trim();
+        if doc_id.is_empty() {
+            return None;
+        }
+        let pdf_b64 = contenido_de(&self.url(&format!("origen/{doc_id}")))?;
+        decode_b64(&pdf_b64)
+    }
+
     /// Consulta el estado del servicio. No requiere sesión.
     pub fn estado(&self) -> Result<Estado, String> {
         let url = self.url(PATH_STATUS);
@@ -99,6 +114,24 @@ fn campo(json: &str, clave: &str) -> Option<String> {
     let rest = json[colon..].trim_start().strip_prefix('"')?;
     let end = rest.find('"')?;
     Some(rest[..end].to_string())
+}
+
+fn contenido_de(url: &str) -> Option<String> {
+    let r = minreq::get(url)
+        .with_header("Accept", "application/json")
+        .with_timeout(20)
+        .send()
+        .ok()?;
+    if r.status_code != 200 {
+        return None;
+    }
+    campo(r.as_str().ok()?, "contenido")
+}
+
+fn decode_b64(s: &str) -> Option<Vec<u8>> {
+    use base64::engine::general_purpose::STANDARD;
+    use base64::Engine;
+    STANDARD.decode(s).ok()
 }
 
 #[cfg(test)]

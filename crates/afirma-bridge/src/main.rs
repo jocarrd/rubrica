@@ -81,18 +81,84 @@ fn mostrar_ventana(invocation: &protocol::Invocation, report: &str) {
     let port = listener.local_addr().map(|a| a.port()).unwrap_or(0);
     abrir_navegador(&format!("http://127.0.0.1:{port}/"));
 
-    // Servimos la página a la primera (y única) visita y terminamos.
-    if let Some(Ok(mut stream)) = listener.incoming().next() {
-        use std::io::Write;
-        let _ = stream.write_all(
-            format!(
-                "HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
-                page.len(),
-                page
-            )
-            .as_bytes(),
-        );
+    let documento = invocation
+        .id
+        .as_deref()
+        .and_then(protocol::url_base_from_id)
+        .zip(sesion_no_vacia(&sesion))
+        .and_then(|(base, ses)| larioja::Cliente::new(&base).documento_a_firmar(&ses));
+
+    for stream in listener.incoming() {
+        let Ok(mut stream) = stream else { continue };
+        let req = leer_peticion(&mut stream);
+        if req.starts_with("POST /firmar") {
+            let cuerpo = req.rsplit("\r\n\r\n").next().unwrap_or("");
+            let resultado = firmar_solicitud(cuerpo, documento.as_deref());
+            responder(&mut stream, "application/json", &resultado);
+            break;
+        } else {
+            responder(&mut stream, "text/html; charset=utf-8", &page);
+        }
     }
+}
+
+fn sesion_no_vacia(s: &str) -> Option<String> {
+    if s.is_empty() {
+        None
+    } else {
+        Some(s.to_string())
+    }
+}
+
+fn leer_peticion(stream: &mut std::net::TcpStream) -> String {
+    use std::io::Read;
+    let mut buf = [0u8; 8192];
+    let n = stream.read(&mut buf).unwrap_or(0);
+    String::from_utf8_lossy(&buf[..n]).into_owned()
+}
+
+fn responder(stream: &mut std::net::TcpStream, tipo: &str, cuerpo: &str) {
+    use std::io::Write;
+    let _ = stream.write_all(
+        format!(
+            "HTTP/1.1 200 OK\r\nContent-Type: {tipo}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{cuerpo}",
+            cuerpo.len()
+        )
+        .as_bytes(),
+    );
+}
+
+fn firmar_solicitud(cuerpo_json: &str, documento: Option<&[u8]>) -> String {
+    let cert = protocol::json_campo(cuerpo_json, "certificado").unwrap_or_default();
+    let pass = protocol::json_campo(cuerpo_json, "password").unwrap_or_default();
+
+    let Some(pdf) = documento else {
+        return "{\"ok\":false,\"error\":\"no se pudo descargar el documento de la sede\"}".into();
+    };
+    let identity = match rubrica_core::load_pkcs12(std::path::Path::new(&cert), &pass) {
+        Ok(id) => id,
+        Err(e) => {
+            return format!(
+                "{{\"ok\":false,\"error\":\"{}\"}}",
+                escape_json(&e.to_string())
+            )
+        }
+    };
+    match rubrica_core::formats::pades::sign(pdf, &identity) {
+        Ok(firmado) => {
+            let salida = format!("{}/.rubrica-firmado.pdf", env_home());
+            let _ = std::fs::write(&salida, &firmado);
+            format!("{{\"ok\":true,\"bytes\":{}}}", firmado.len())
+        }
+        Err(e) => format!(
+            "{{\"ok\":false,\"error\":\"{}\"}}",
+            escape_json(&e.to_string())
+        ),
+    }
+}
+
+fn escape_json(s: &str) -> String {
+    s.replace('\\', "\\\\").replace('"', "\\\"")
 }
 
 fn abrir_navegador(url: &str) {
@@ -135,19 +201,33 @@ fn ventana_html(operacion: &str, servidor: &str, sesion: &str, report: &str) -> 
 fn opciones_certificados() -> String {
     let certs = certificados::disponibles();
     if certs.is_empty() {
-        return "<option value=\"\">No se encontró ningún certificado (.p12/.pfx)</option>".into();
+        return "<div class=\"empty\">No se encontró ningún certificado (.p12/.pfx) en tu carpeta personal ni en Descargas.</div>".into();
     }
     certs
         .iter()
         .map(|c| {
             format!(
-                "<option value=\"{}\">{}</option>",
+                "<div class=\"cert\" data-ruta=\"{}\">\
+<span class=\"ico\">🔑</span>\
+<span class=\"nm\">{}</span>\
+<span class=\"ck\">✓</span>\
+</div>",
                 escape(&c.ruta.to_string_lossy()),
-                escape(&c.nombre)
+                escape(&nombre_legible(&c.nombre))
             )
         })
         .collect::<Vec<_>>()
         .join("\n")
+}
+
+fn nombre_legible(archivo: &str) -> String {
+    archivo
+        .trim_end_matches(".p12")
+        .trim_end_matches(".pfx")
+        .replace('_', " ")
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
 }
 
 fn escape(s: &str) -> String {

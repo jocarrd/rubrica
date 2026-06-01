@@ -66,6 +66,16 @@ pub fn id_from_carfirma_string(id: &str) -> Option<String> {
     Some(id[last + 1..].to_string())
 }
 
+/// Extrae el valor de un campo de cadena de un JSON plano.
+pub fn json_campo(json: &str, clave: &str) -> Option<String> {
+    let needle = format!("\"{clave}\"");
+    let start = json.find(&needle)? + needle.len();
+    let colon = json[start..].find(':')? + start + 1;
+    let rest = json[colon..].trim_start().strip_prefix('"')?;
+    let end = rest.find('"')?;
+    Some(rest[..end].to_string())
+}
+
 fn parse_query(query: &str) -> HashMap<String, String> {
     let mut params = HashMap::new();
     if query.is_empty() {
