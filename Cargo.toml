@@ -3,6 +3,7 @@ resolver = "2"
 members = [
     "crates/rubrica-core",
     "crates/rubrica-cli",
+    "crates/rubrica-gui",
     "spike",
 ]
 

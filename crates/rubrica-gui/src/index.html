@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rúbrica</title>
+<style>
+  :root { color-scheme: light dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: #f4f5f7;
+    color: #1a1a1a;
+    display: flex;
+    min-height: 100vh;
+    align-items: center;
+    justify-content: center;
+  }
+  .card {
+    background: #fff;
+    border-radius: 16px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.08);
+    padding: 40px;
+    width: 100%;
+    max-width: 460px;
+  }
+  h1 { margin: 0 0 4px; font-size: 28px; }
+  .subtitle { margin: 0 0 28px; color: #666; font-size: 14px; }
+  label { display: block; font-size: 13px; font-weight: 600; margin: 16px 0 6px; }
+  input[type=file], input[type=password] {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #d0d3d8;
+    border-radius: 8px;
+    font-size: 14px;
+    background: #fafbfc;
+  }
+  button {
+    width: 100%;
+    margin-top: 24px;
+    padding: 13px;
+    border: 0;
+    border-radius: 10px;
+    background: #2563eb;
+    color: #fff;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  button:disabled { opacity: 0.5; cursor: default; }
+  #status {
+    margin-top: 18px;
+    padding: 12px;
+    border-radius: 8px;
+    font-size: 14px;
+    display: none;
+  }
+  #status.ok { display: block; background: #e7f6ec; color: #1b7a3d; }
+  #status.err { display: block; background: #fdecec; color: #b42318; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <h1>Rúbrica</h1>
+    <p class="subtitle">Firma electrónica · PAdES · CAdES · XAdES</p>
+
+    <label for="doc">Documento</label>
+    <input type="file" id="doc">
+
+    <label for="cert">Certificado (.p12 / .pfx)</label>
+    <input type="file" id="cert">
+
+    <label for="pass">Contraseña del certificado</label>
+    <input type="password" id="pass" placeholder="••••••">
+
+    <button id="sign" disabled>Firmar</button>
+    <div id="status"></div>
+  </div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const doc = $("doc"), cert = $("cert"), pass = $("pass"), btn = $("sign"), status = $("status");
+
+function check() { btn.disabled = !(doc.files[0] && cert.files[0]); }
+doc.onchange = check;
+cert.onchange = check;
+
+const toB64 = (file) => new Promise((res) => {
+  const r = new FileReader();
+  r.onload = () => res(r.result.split(",")[1]);
+  r.readAsDataURL(file);
+});
+
+btn.onclick = async () => {
+  btn.disabled = true;
+  status.className = "";
+  try {
+    const payload = {
+      document: await toB64(doc.files[0]),
+      certificate: await toB64(cert.files[0]),
+      password: pass.value,
+      name: doc.files[0].name,
+    };
+    const r = await fetch("/api/sign", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || "error al firmar");
+
+    const bin = Uint8Array.from(atob(data.signed), (c) => c.charCodeAt(0));
+    const url = URL.createObjectURL(new Blob([bin]));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = data.filename;
+    a.click();
+
+    status.className = "ok";
+    status.textContent = "Firmado por " + (data.signer || "certificado") + ". Descarga iniciada.";
+  } catch (e) {
+    status.className = "err";
+    status.textContent = e.message;
+  }
+  btn.disabled = false;
+};
+</script>
+</body>
+</html>

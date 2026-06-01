@@ -1,0 +1,19 @@
+[package]
+name = "rubrica-gui"
+version = "0.1.0"
+description = "Interfaz web local de Rúbrica"
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[[bin]]
+name = "rubrica-gui"
+path = "src/main.rs"
+
+[dependencies]
+rubrica-core = { path = "../rubrica-core" }
+tiny_http = "0.12"
+base64 = "0.22"
+anyhow.workspace = true
