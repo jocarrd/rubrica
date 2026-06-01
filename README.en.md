@@ -7,19 +7,17 @@
 > AutoFirma struggles — starting with Linux.
 
 A *rúbrica* is the final flourish of a handwritten signature. This project aims to
-be that stroke: signing and validating documents with the Spanish national eID
-(DNIe), FNMT certificates and software certificates — no Java, good UX, and
-packaging that just works.
+be that stroke: signing and validating documents with an electronic certificate —
+no Java, good UX, and packaging that just works.
 
 ## Features
 
 - Signs documents in the standard formats of the Spanish administration:
   **PAdES** (PDF), **CAdES** (binary) and **XAdES** (XML).
-- ETSI profiles from baseline (**-B**) to timestamped (**-T**) and long-term
-  preservation levels.
-- Key access via **DNIe** and smart cards (PKCS#11), **PKCS#12** certificates
-  (`.p12`/`.pfx`) and the system **NSS** store.
-- Signature validation against the official tools.
+- ETSI profiles: baseline (**-B**) and timestamped (**-T**) via a TSA.
+- File-based **PKCS#12** certificates (`.p12`/`.pfx`), such as the FNMT one, with
+  modern AES/PBES2 or legacy encryption.
+- Signature verification with tampering detection.
 - Native 64-bit binary, no Java dependency.
 
 ## Components
@@ -28,19 +26,18 @@ packaging that just works.
 |-----------|-------------|
 | `rubrica-core` | Signing and validation core. All logic, no UI. |
 | `rubrica-cli` | Command-line interface over the core. |
-| `rubrica` (app) | Desktop application with a native GUI. |
-| `afirma-bridge` | `afirma://` protocol bridge to integrate with the portals. |
+| `rubrica-gui` | Local web interface served by the binary itself. |
 
 ## Installation
 
-> Distributed as an **AppImage** and **Flatpak** on Linux. Windows and macOS will
-> follow.
-
-Signing with a DNIe or smart card requires the system PKCS#11 modules:
+Download the **AppImage**, make it executable and run it:
 
 ```bash
-sudo apt install opensc pcscd
+chmod +x Rubrica-x86_64.AppImage
+./Rubrica-x86_64.AppImage
 ```
+
+No further system installation required.
 
 ## Usage
 
@@ -59,7 +56,10 @@ rubrica verify document-signed.pdf
 
 ## License
 
-Dual-licensed at your option: [MIT](LICENSE-MIT) or [Apache-2.0](LICENSE-APACHE).
-The cryptographic engine is built from permissively licensed dependencies or
-integrated as a separate process; it does not derive from `clienteafirma`
-(GPL/EUPL).
+[GNU Affero General Public License v3.0 or later](LICENSE) (AGPL-3.0-or-later).
+
+Copyright © 2026 Jorge Carrera.
+
+Anyone may use, study and modify Rúbrica, but every derivative work — including
+one offered as a network service — must also be distributed under the AGPL-3.0
+and keep this attribution. The code may not be closed or made proprietary.

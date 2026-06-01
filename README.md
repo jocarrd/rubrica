@@ -7,19 +7,18 @@
 > AutoFirma falla — empezando por Linux.
 
 La *rúbrica* es el trazo final de una firma manuscrita. Este proyecto aspira a ser
-ese trazo: firmar y validar documentos con DNIe, certificado FNMT y certificados
-software, sin Java, con buena experiencia de uso y un empaquetado que simplemente
-funciona.
+ese trazo: firmar y validar documentos con certificado electrónico, sin Java, con
+buena experiencia de uso y un empaquetado que simplemente funciona.
 
 ## Características
 
 - Firma de documentos en los formatos estándar de la administración española:
   **PAdES** (PDF), **CAdES** (binario) y **XAdES** (XML).
-- Perfiles ETSI desde firma básica (**-B**) hasta sello de tiempo (**-T**) y
-  niveles de conservación a largo plazo.
-- Acceso a claves mediante **DNIe** y tarjetas criptográficas (PKCS#11),
-  certificados **PKCS#12** (`.p12`/`.pfx`) y el almacén **NSS** del sistema.
-- Validación de firmas contra las herramientas oficiales.
+- Perfiles ETSI: firma básica (**-B**) y con sello de tiempo (**-T**) mediante una
+  autoridad TSA.
+- Certificados en fichero **PKCS#12** (`.p12`/`.pfx`), como el de la FNMT, con
+  cifrado moderno AES/PBES2 o heredado.
+- Verificación de firmas con detección de documentos manipulados.
 - Binario nativo de 64 bits, sin dependencias de Java.
 
 ## Componentes
@@ -28,20 +27,18 @@ funciona.
 |------------|-------------|
 | `rubrica-core` | Núcleo de firma y validación. Toda la lógica, sin interfaz. |
 | `rubrica-cli` | Interfaz de línea de comandos sobre el núcleo. |
-| `rubrica` (app) | Aplicación de escritorio con interfaz gráfica nativa. |
-| `afirma-bridge` | Puente del protocolo `afirma://` para integrarse con las sedes. |
+| `rubrica-gui` | Interfaz web local servida por el propio binario. |
 
 ## Instalación
 
-> Distribución mediante **AppImage** y **Flatpak** en Linux. Windows y macOS
-> llegarán más adelante.
-
-Para firmar con DNIe o tarjeta criptográfica se necesitan los módulos PKCS#11 del
-sistema:
+Descarga el **AppImage**, dale permiso de ejecución y ábrelo:
 
 ```bash
-sudo apt install opensc pcscd
+chmod +x Rubrica-x86_64.AppImage
+./Rubrica-x86_64.AppImage
 ```
+
+No requiere instalar nada más en el sistema.
 
 ## Uso
 
@@ -60,7 +57,11 @@ rubrica verify documento-firmado.pdf
 
 ## Licencia
 
-Doble licencia a elección del usuario: [MIT](LICENSE-MIT) o
-[Apache-2.0](LICENSE-APACHE). El motor criptográfico se construye con
-dependencias de licencia permisiva o se integra como proceso separado; no deriva
-de `clienteafirma` (GPL/EUPL).
+[GNU Affero General Public License v3.0 o posterior](LICENSE) (AGPL-3.0-or-later).
+
+Copyright © 2026 Jorge Carrera.
+
+Esto significa que cualquiera puede usar, estudiar y modificar Rúbrica, pero todo
+trabajo derivado —incluido el ofrecido como servicio en red— debe distribuirse
+también bajo AGPL-3.0 y mantener esta atribución. El código no puede cerrarse ni
+comercializarse de forma privativa.

@@ -5,98 +5,76 @@
 > Cliente moderno de firma electrónica compatible con las sedes electrónicas
 > españolas (plataforma @firma), pensado para funcionar bien donde AutoFirma falla.
 >
-> - **Stack:** Rust nativo, sin runtime. GUI nativa (egui / slint / gtk-rs).
-> - **Plataforma inicial:** Linux.
-> - **Licencia:** MIT o Apache-2.0. Permisiva porque no derivamos de
->   `clienteafirma` (GPL/EUPL); el motor se construye con piezas permisivas o se
->   integra como proceso separado.
+> - **Stack:** Rust nativo, sin runtime. Interfaz web local servida por el binario.
+> - **Plataforma:** Linux, distribuido como AppImage.
+> - **Licencia:** AGPL-3.0-or-later.
 
 ## Idea en una frase
 
-No reinventamos la criptografía de firma (estándares ETSI abiertos); reinventamos
-la experiencia, el empaquetado y la integración con el navegador, que es donde está
-el dolor real.
+Rúbrica no reinventa la criptografía de firma —que son estándares ETSI abiertos—
+sino la experiencia, el empaquetado y la integración con el navegador, que es donde
+está el dolor real.
 
 ## Motor de firma
 
-Al elegir Rust nativo renunciamos a DSS (que es Java), así que el motor de firma es
-la parte difícil, no la interfaz. Plan realista por formato:
+El motor está escrito en Rust puro sobre RustCrypto, sin dependencias de Java.
+Formatos soportados:
 
-| Formato | Uso en sedes | Dificultad en Rust | Plan |
-|---------|--------------|--------------------|------|
-| CAdES (CMS/PKCS#7) | Alto | Media | MVP. `cms` + `x509-cert` (RustCrypto) |
-| PAdES (PDF) | Muy alto | Media-alta | MVP. CAdES detached embebido vía `lopdf` |
-| XAdES (XML-DSig) | Muy alto | Alta (canonicalización) | Fase 2. Bindings a `xmlsec`/`libxml2` o sidecar |
-| ASiC | Medio | Media | Fase 3 (contenedor ZIP sobre los anteriores) |
+| Formato | Uso en sedes | Descripción |
+|---------|--------------|-------------|
+| CAdES (CMS/PKCS#7) | Alto | Firma binaria detached |
+| PAdES (PDF) | Muy alto | CAdES detached embebido en el PDF |
+| XAdES (XML-DSig) | Muy alto | Firma XML enveloping con canonicalización C14N |
 
-XAdES es el talón de Aquiles de Rust: la canonicalización XML (C14N) y XML-DSig no
-tienen librería madura. Es la única parte donde quizá haga falta un sidecar o
-bindings a C, pero no bloquea el MVP.
-
-Niveles de firma (perfiles ETSI): el MVP cubre **-B** (básica) y **-T** (con sello
-de tiempo RFC 3161). Los niveles -LT y -LTA (OCSP/CRL embebidos, archivado a largo
-plazo) quedan para fases posteriores.
+Niveles de firma (perfiles ETSI): **-B** (básica) y **-T** (con sello de tiempo
+RFC 3161 obtenido de una autoridad TSA).
 
 ## Acceso a certificados y claves
 
-Un trait común `SignerProvider` con tres implementaciones:
-
-1. **PKCS#11** — DNIe y tarjetas criptográficas, vía el crate `cryptoki` apuntando
-   a `opensc-pkcs11.so`. Requiere `opensc` y `pcscd`. Gestión de PIN.
-2. **PKCS#12** — ficheros `.p12`/`.pfx`, como el certificado FNMT exportado.
-3. **Almacén NSS del sistema** — `~/.pki/nssdb`, el que usan Firefox y Chrome en
-   Linux. (Nativo de 64 bits, sin el problema de arquitectura que tenía carFirma.)
+Los certificados se cargan desde ficheros **PKCS#12** (`.p12`/`.pfx`), como el
+certificado de la FNMT exportado. Se admiten tanto el cifrado moderno PBES2/AES
+(el que generan OpenSSL 3 y la FNMT) como el cifrado 3DES heredado.
 
 ## Estructura del workspace
 
 ```
 rubrica/
-├─ spike/                 de-risk: firmar PAdES-B y validar (fase actual)
 ├─ crates/
-│  ├─ rubrica-core/       lógica pura, testeable en aislado
-│  │  ├─ keystore/        SignerProvider: pkcs11, pkcs12, nss
-│  │  ├─ formats/         cades, pades, (xades en fase 2)
-│  │  ├─ tsa/             sellado de tiempo RFC 3161
-│  │  └─ validation/      verificación de firmas
-│  ├─ rubrica-cli/        interfaz de línea de comandos sobre el core
-│  └─ afirma-bridge/      fase 3: servidor local + handler afirma://
-├─ app/                   GUI nativa
-└─ packaging/             AppImage + Flatpak
+│  ├─ rubrica-core/       núcleo de firma y validación
+│  │  ├─ keystore/        carga de certificados PKCS#12
+│  │  ├─ formats/         cades, pades, xades, validación
+│  │  └─ tsa/             sellado de tiempo RFC 3161
+│  ├─ rubrica-cli/        interfaz de línea de comandos
+│  └─ rubrica-gui/        interfaz web local
+└─ ...
 ```
 
-Regla de oro: toda la lógica vive en `rubrica-core`, un crate independiente con
-tests. La GUI y la CLI son capas finas por encima. Esto permite tener una CLI
-desde el principio reutilizando el mismo núcleo.
+Toda la lógica vive en `rubrica-core`, un crate independiente con tests. La CLI y
+la interfaz web son capas finas que reutilizan el mismo núcleo.
 
-## Integración con las sedes (fase 3)
+## Verificación
 
-Las sedes no llaman a la app directamente: su JavaScript (`autoscript.js`) invoca
-el protocolo de AutoFirma, que tiene dos mecanismos:
+Cada formato se contrasta con las herramientas de referencia: las firmas PAdES con
+`pdfsig` (poppler), las XAdES con `xmlsec1`, y los sellos de tiempo con `openssl
+ts`. La verificación propia recalcula el hash del contenido firmado y comprueba la
+firma RSA contra la clave pública del certificado, detectando cualquier
+manipulación del documento.
+
+## Integración con las sedes
+
+Las sedes no llaman a la aplicación directamente: su JavaScript (`autoscript.js`)
+invoca el protocolo de AutoFirma, que tiene dos mecanismos:
 
 - registra el esquema `afirma://` (en Linux mediante un `.desktop` con
-  `MimeType=x-scheme-handler/afirma`, el mismo mecanismo que usaba carFirma con
-  `x-scheme-handler/carfirma`), y
-- levanta un servidor local en `127.0.0.1` (puertos del orden de 63117) que habla
-  un protocolo JSON con comandos (`sign`, `cosign`, `batch`; parámetros en base64).
+  `MimeType=x-scheme-handler/afirma`), y
+- levanta un servidor local en `127.0.0.1` que habla un protocolo JSON con comandos
+  (`sign`, `cosign`, `batch`; parámetros en base64).
 
-Para ser compatible con todas las comunidades hay que implementar ese protocolo con
-exactitud. Se entiende a partir del protocolo público y de capturas de red. Se
-documenta desde fuentes públicas y observación; no se porta código GPL.
+La compatibilidad con ese protocolo se construye a partir de su especificación
+pública; no se porta código de `clienteafirma`.
 
 ## Empaquetado
 
-- **AppImage** (un único fichero ejecutable) y **Flatpak** (Software de GNOME y
-  derivados).
-- Binario de 64 bits nativo, sin dependencias de 32 bits. Los módulos PKCS#11 del
-  DNIe se toman del sistema (`opensc`), documentando la dependencia.
-- Registro del handler `afirma://` durante la instalación.
-
-## Riesgos y mitigaciones
-
-| Riesgo | Mitigación |
-|--------|------------|
-| XAdES/C14N en Rust es difícil | Diferir a fase 2; sidecar o bindings a xmlsec |
-| El protocolo de sede cambia | Aislarlo en `afirma-bridge`; tests de integración |
-| Confianza (validez legal) | Validar contra herramientas oficiales y vectores conocidos |
-| Abandono a mitad | Entregar algo útil en la fase 1; no abarcarlo todo de golpe |
-| Línea legal del clean-room | Documentar desde fuentes públicas, no portar código GPL |
+Rúbrica se distribuye como **AppImage**: un único fichero ejecutable que incluye el
+binario y todo lo necesario, sin instalación ni dependencias del sistema. Binario
+de 64 bits nativo.
