@@ -17,6 +17,12 @@ struct Cli {
 #[derive(Subcommand)]
 enum Command {
     Sign(SignArgs),
+    Verify(VerifyArgs),
+}
+
+#[derive(Parser)]
+struct VerifyArgs {
+    file: PathBuf,
 }
 
 #[derive(Parser)]
@@ -38,6 +44,41 @@ fn main() -> Result<()> {
     let cli = Cli::parse();
     match cli.command {
         Command::Sign(args) => sign(args),
+        Command::Verify(args) => verify(args),
+    }
+}
+
+fn verify(args: VerifyArgs) -> Result<()> {
+    let data =
+        std::fs::read(&args.file).with_context(|| format!("leyendo {}", args.file.display()))?;
+    let report = formats::pades::verify(&data)?;
+
+    let signer = report
+        .signer_common_name
+        .unwrap_or_else(|| "(desconocido)".into());
+    println!("Firmante: {signer}");
+    println!(
+        "Integridad del documento: {}",
+        if report.digest_matches {
+            "correcta"
+        } else {
+            "ALTERADA"
+        }
+    );
+    println!(
+        "Firma criptográfica: {}",
+        if report.signature_valid {
+            "válida"
+        } else {
+            "INVÁLIDA"
+        }
+    );
+
+    if report.is_valid() {
+        println!("Resultado: firma válida");
+        Ok(())
+    } else {
+        std::process::exit(1);
     }
 }
 

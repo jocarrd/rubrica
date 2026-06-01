@@ -31,3 +31,35 @@ fn cades_produce_cms_signed_data() {
     assert!(sig.len() > 100);
     assert_eq!(sig[0], 0x30, "el CMS debe empezar por SEQUENCE (DER)");
 }
+
+#[test]
+fn pades_firma_y_verifica_round_trip() {
+    let signed = formats::pades::sign(PDF, &identity()).expect("firmar PDF");
+    let report = formats::pades::verify(&signed).expect("verificar PDF");
+    assert!(report.digest_matches, "el documento no debe estar alterado");
+    assert!(report.signature_valid, "la firma debe ser válida");
+    assert!(report.is_valid());
+    assert_eq!(report.signer_common_name.as_deref(), Some("Rubrica Test"));
+}
+
+#[test]
+fn pades_detecta_documento_manipulado() {
+    let mut signed = formats::pades::sign(PDF, &identity()).expect("firmar PDF");
+    signed[20] ^= 0xff;
+    let report = formats::pades::verify(&signed).expect("verificar PDF manipulado");
+    assert!(
+        !report.is_valid(),
+        "una firma sobre contenido alterado no es válida"
+    );
+}
+
+#[test]
+fn cades_firma_y_verifica_round_trip() {
+    let data = b"contenido de prueba";
+    let sig = formats::cades::sign(data, &identity()).expect("firmar CAdES");
+    let report = formats::cades::verify(data, &sig).expect("verificar CAdES");
+    assert!(report.is_valid());
+
+    let report_malo = formats::cades::verify(b"otro contenido", &sig).expect("verificar alterado");
+    assert!(!report_malo.is_valid());
+}

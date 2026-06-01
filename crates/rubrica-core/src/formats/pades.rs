@@ -1,4 +1,5 @@
 use super::cms;
+use super::validate::{trim_der, verify_detached, Report};
 use crate::error::{Error, Result};
 use crate::keystore::Identity;
 
@@ -9,6 +10,53 @@ pub fn sign(pdf: &[u8], identity: &Identity) -> Result<Vec<u8>> {
     let digest = cms::sha256(&prepared.signed_bytes());
     let signature = cms::signed_data_detached(&digest, identity)?;
     prepared.embed(&signature)
+}
+
+pub fn verify(pdf: &[u8]) -> Result<Report> {
+    let (content, signature) = extract(pdf)?;
+    verify_detached(&content, &signature)
+}
+
+fn extract(pdf: &[u8]) -> Result<(Vec<u8>, Vec<u8>)> {
+    let needle = b"/ByteRange [";
+    let pos = find_from(pdf, needle, 0).ok_or_else(|| Error::Pdf("sin /ByteRange".into()))?;
+    let start = pos + needle.len();
+    let close = pdf[start..]
+        .iter()
+        .position(|b| *b == b']')
+        .ok_or_else(|| Error::Pdf("/ByteRange sin cierre".into()))?
+        + start;
+    let nums = std::str::from_utf8(&pdf[start..close])
+        .map_err(|_| Error::Pdf("/ByteRange no es texto".into()))?
+        .split_whitespace()
+        .map(|s| s.parse::<usize>())
+        .collect::<std::result::Result<Vec<_>, _>>()
+        .map_err(|_| Error::Pdf("/ByteRange no numérico".into()))?;
+    let [a, b, c, d] = nums[..] else {
+        return Err(Error::Pdf("/ByteRange debe tener 4 valores".into()));
+    };
+    if a + b > pdf.len() || c + d > pdf.len() {
+        return Err(Error::Pdf("/ByteRange fuera de límites".into()));
+    }
+
+    let mut content = Vec::with_capacity(b + d);
+    content.extend_from_slice(&pdf[a..a + b]);
+    content.extend_from_slice(&pdf[c..c + d]);
+
+    let hole = &pdf[a + b..c];
+    let lt = hole
+        .iter()
+        .position(|x| *x == b'<')
+        .ok_or_else(|| Error::Pdf("/Contents sin <".into()))?;
+    let gt = hole
+        .iter()
+        .position(|x| *x == b'>')
+        .ok_or_else(|| Error::Pdf("/Contents sin >".into()))?;
+    let raw =
+        hex::decode(&hole[lt + 1..gt]).map_err(|_| Error::Pdf("/Contents no es hex".into()))?;
+    let signature = trim_der(&raw)?.to_vec();
+
+    Ok((content, signature))
 }
 
 struct Prepared {
