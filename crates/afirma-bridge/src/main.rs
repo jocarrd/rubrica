@@ -243,15 +243,70 @@ fn bind() -> Option<TcpListener> {
         .find_map(|p| TcpListener::bind(("127.0.0.1", *p)).ok())
 }
 
-fn handle(message: &str) -> String {
-    if let Some(rest) = message.strip_prefix(ECHO_PREFIX) {
-        let _ = rest;
-        return ECHO_OK.to_string();
+enum Mensaje {
+    Echo,
+    Resultado,
+    Operacion,
+}
+
+fn clasificar(message: &str) -> Mensaje {
+    if message.starts_with(ECHO_PREFIX) {
+        Mensaje::Echo
+    } else if message.starts_with("getresult?") {
+        Mensaje::Resultado
+    } else {
+        Mensaje::Operacion
     }
-    process_operation(message)
+}
+
+fn handle(message: &str) -> String {
+    match clasificar(message) {
+        Mensaje::Echo => ECHO_OK.to_string(),
+        Mensaje::Resultado => "CANCEL".to_string(),
+        Mensaje::Operacion => process_operation(message),
+    }
 }
 
 fn process_operation(message: &str) -> String {
     let invocation = protocol::parse(message);
-    format!("RUBRICA_RECEIVED:{}", invocation.operation)
+    let proveedor = proveedores::para_esquema(message);
+    let solicitud = proveedor.preparar(&invocation);
+
+    log_invocation(&format!(
+        "operación por WebSocket: {} ({} bytes)\n",
+        invocation.operation,
+        solicitud.documento.as_ref().map_or(0, |d| d.len())
+    ));
+    mostrar_ventana(
+        proveedor.as_ref(),
+        &solicitud,
+        "Operación recibida por WebSocket",
+    );
+    "OK".to_string()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn el_echo_responde_ok() {
+        assert_eq!(handle("echo=-idsession=ABC@EOF"), "OK");
+    }
+
+    #[test]
+    fn getresult_no_se_trata_como_operacion() {
+        assert!(matches!(
+            clasificar("getresult?idsession=ABC"),
+            Mensaje::Resultado
+        ));
+    }
+
+    #[test]
+    fn una_url_afirma_es_operacion() {
+        assert!(matches!(
+            clasificar("afirma://sign?op=sign&dat=AAAA"),
+            Mensaje::Operacion
+        ));
+    }
 }
