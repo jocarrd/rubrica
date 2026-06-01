@@ -3,6 +3,7 @@ use rubrica_core::{formats, parse_pkcs12};
 const P12: &[u8] = include_bytes!("fixtures/test.p12");
 const P12_MODERN: &[u8] = include_bytes!("fixtures/modern.p12");
 const PDF: &[u8] = include_bytes!("fixtures/sample.pdf");
+const PDF_ACROFORM: &[u8] = include_bytes!("fixtures/con-acroform.pdf");
 
 fn identity() -> rubrica_core::Identity {
     parse_pkcs12(P12, "test").expect("cargar PKCS#12 de prueba")
@@ -63,6 +64,21 @@ fn cades_firma_y_verifica_round_trip() {
 
     let report_malo = formats::cades::verify(b"otro contenido", &sig).expect("verificar alterado");
     assert!(!report_malo.is_valid());
+}
+
+#[test]
+fn pades_preserva_acroform_existente() {
+    let signed =
+        formats::pades::sign(PDF_ACROFORM, &identity()).expect("firmar PDF con formulario");
+
+    let contiene = |needle: &[u8]| signed.windows(needle.len()).any(|w| w == needle);
+    assert!(
+        contiene(b"campo_previo"),
+        "el campo del formulario original debe conservarse"
+    );
+
+    let report = formats::pades::verify(&signed).expect("verificar");
+    assert!(report.is_valid());
 }
 
 #[test]

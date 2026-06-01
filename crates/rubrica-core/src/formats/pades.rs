@@ -69,18 +69,28 @@ struct Prepared {
 impl Prepared {
     fn build(pdf: &[u8]) -> Result<Self> {
         let prev_xref = find_startxref(pdf)?;
-        let pages_ref = obj_ref_after(pdf, b"/Pages")?;
         let page_ref = first_page_ref(pdf)?;
-        let mut next = max_obj_number(pdf)? + 1;
+        let catalog_ref = obj_ref_after(pdf, b"/Root")?;
+        let catalog = catalog_object(pdf, catalog_ref)?;
+        let existing_acroform = catalog_acroform(pdf, &catalog);
 
+        let mut next = max_obj_number(pdf)? + 1;
         let sig = next;
         next += 1;
         let annot = next;
         next += 1;
-        let acroform = next;
-        next += 1;
-        let catalog = next;
 
+        // Si ya hay AcroForm reutilizamos su número de objeto; si no, creamos uno.
+        let acroform = match &existing_acroform {
+            Some(a) => a.obj,
+            None => {
+                let n = next;
+                next += 1;
+                n
+            }
+        };
+
+        let mut updated = Updated::new();
         let mut out = Vec::with_capacity(pdf.len() + CONTENTS_CAPACITY * 3);
         out.extend_from_slice(pdf);
         if !out.ends_with(b"\n") {
@@ -99,39 +109,47 @@ impl Prepared {
         out.extend(std::iter::repeat(b'0').take(CONTENTS_CAPACITY));
         let hex_len = out.len() - hex_start;
         out.extend_from_slice(b"> >>\nendobj\n");
+        updated.push(sig, sig_offset);
 
         let annot_offset = out.len();
         out.extend_from_slice(
             format!("{annot} 0 obj\n<< /Type /Annot /Subtype /Widget /FT /Sig /Rect [0 0 0 0] /T (Rubrica Signature) /V {sig} 0 R /P {page_ref} 0 R /F 132 >>\nendobj\n")
                 .as_bytes(),
         );
+        updated.push(annot, annot_offset);
 
         let acroform_offset = out.len();
+        let mut fields = existing_acroform
+            .as_ref()
+            .map(|a| a.fields.clone())
+            .unwrap_or_default();
+        if !fields.is_empty() {
+            fields.push(' ');
+        }
+        fields.push_str(&format!("{annot} 0 R"));
         out.extend_from_slice(
-            format!("{acroform} 0 obj\n<< /Fields [{annot} 0 R] /SigFlags 3 >>\nendobj\n")
-                .as_bytes(),
+            format!("{acroform} 0 obj\n<< /Fields [{fields}] /SigFlags 3 >>\nendobj\n").as_bytes(),
         );
+        updated.push(acroform, acroform_offset);
 
-        let catalog_offset = out.len();
-        out.extend_from_slice(
-            format!("{catalog} 0 obj\n<< /Type /Catalog /Pages {pages_ref} 0 R /AcroForm {acroform} 0 R >>\nendobj\n")
-                .as_bytes(),
-        );
+        // Reescribimos el Catalog (mismo número de objeto) conservando sus claves
+        // y garantizando que referencie nuestro AcroForm.
+        if existing_acroform.is_none() {
+            let catalog_offset = out.len();
+            let body = catalog_with_acroform(&catalog, acroform);
+            out.extend_from_slice(format!("{catalog_ref} 0 obj\n{body}\nendobj\n").as_bytes());
+            updated.push(catalog_ref, catalog_offset);
+        }
 
         let xref_offset = out.len();
         out.extend_from_slice(b"xref\n");
-        for (num, off) in [
-            (sig, sig_offset),
-            (annot, annot_offset),
-            (acroform, acroform_offset),
-            (catalog, catalog_offset),
-        ] {
+        for (num, off) in updated.sorted() {
             out.extend_from_slice(format!("{num} 1\n{off:010} 00000 n \n").as_bytes());
         }
         out.extend_from_slice(
             format!(
-                "trailer\n<< /Size {size} /Root {catalog} 0 R /Prev {prev_xref} >>\nstartxref\n{xref_offset}\n%%EOF\n",
-                size = catalog + 1
+                "trailer\n<< /Size {size} /Root {catalog_ref} 0 R /Prev {prev_xref} >>\nstartxref\n{xref_offset}\n%%EOF\n",
+                size = next
             )
             .as_bytes(),
         );
@@ -180,6 +198,86 @@ impl Prepared {
         self.bytes[self.hex_start..self.hex_start + bytes.len()].copy_from_slice(bytes);
         Ok(self.bytes)
     }
+}
+
+struct Updated(Vec<(u32, usize)>);
+
+impl Updated {
+    fn new() -> Self {
+        Self(Vec::new())
+    }
+
+    fn push(&mut self, obj: u32, offset: usize) {
+        self.0.push((obj, offset));
+    }
+
+    fn sorted(mut self) -> Vec<(u32, usize)> {
+        self.0.sort_by_key(|(num, _)| *num);
+        self.0
+    }
+}
+
+struct AcroForm {
+    obj: u32,
+    fields: String,
+}
+
+fn catalog_object(pdf: &[u8], catalog_ref: u32) -> Result<Vec<u8>> {
+    let marker = format!("{catalog_ref} 0 obj");
+    let pos = find_from(pdf, marker.as_bytes(), 0)
+        .ok_or_else(|| Error::Pdf("Catalog no hallado".into()))?;
+    let open = find_from(pdf, b"<<", pos).ok_or_else(|| Error::Pdf("Catalog sin <<".into()))?;
+    let close = dict_end(pdf, open)?;
+    Ok(pdf[open..close].to_vec())
+}
+
+fn catalog_acroform(pdf: &[u8], catalog: &[u8]) -> Option<AcroForm> {
+    let key = find_from(catalog, b"/AcroForm", 0)?;
+    let obj = parse_uint_after(&catalog[key + b"/AcroForm".len()..])?;
+    let marker = format!("{obj} 0 obj");
+    let pos = find_from(pdf, marker.as_bytes(), 0)?;
+    let open = find_from(pdf, b"<<", pos)?;
+    let close = dict_end(pdf, open).ok()?;
+    let dict = &pdf[open..close];
+    let fields = acroform_fields(dict).unwrap_or_default();
+    Some(AcroForm { obj, fields })
+}
+
+fn acroform_fields(dict: &[u8]) -> Option<String> {
+    let key = find_from(dict, b"/Fields", 0)?;
+    let open = find_from(dict, b"[", key)?;
+    let close = dict[open..].iter().position(|b| *b == b']')? + open;
+    Some(
+        String::from_utf8_lossy(&dict[open + 1..close])
+            .trim()
+            .to_string(),
+    )
+}
+
+fn catalog_with_acroform(catalog: &[u8], acroform: u32) -> String {
+    let text = String::from_utf8_lossy(catalog);
+    let inner = text.trim().trim_start_matches("<<").trim_end_matches(">>");
+    format!("<< {} /AcroForm {acroform} 0 R >>", inner.trim())
+}
+
+fn dict_end(pdf: &[u8], open: usize) -> Result<usize> {
+    let mut depth = 0i32;
+    let mut i = open;
+    while i + 1 < pdf.len() {
+        if &pdf[i..i + 2] == b"<<" {
+            depth += 1;
+            i += 2;
+        } else if &pdf[i..i + 2] == b">>" {
+            depth -= 1;
+            i += 2;
+            if depth == 0 {
+                return Ok(i);
+            }
+        } else {
+            i += 1;
+        }
+    }
+    Err(Error::Pdf("diccionario sin cierre".into()))
 }
 
 fn find_from(hay: &[u8], needle: &[u8], from: usize) -> Option<usize> {
