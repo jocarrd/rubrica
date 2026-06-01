@@ -47,6 +47,12 @@
 
     <span class="badge">Invocación recibida correctamente</span>
 
+    <label for="cert" style="display:block;margin:22px 0 6px;font-size:13px;font-weight:600;">Certificado para firmar</label>
+    <select id="cert" style="width:100%;padding:10px 12px;border:1px solid #d0d3d8;border-radius:8px;font-size:14px;background:#fafbfc;">
+      {{OPCIONES_CERT}}
+    </select>
+    <button id="firmar" style="width:100%;margin-top:16px;padding:13px;border:0;border-radius:10px;background:#2563eb;color:#fff;font-size:15px;font-weight:600;cursor:pointer;">Firmar</button>
+
     <details>
       <summary>Ver detalle técnico</summary>
       <pre>{{DETALLE}}</pre>

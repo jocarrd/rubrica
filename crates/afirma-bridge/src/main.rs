@@ -1,3 +1,4 @@
+mod certificados;
 mod larioja;
 mod protocol;
 
@@ -121,7 +122,26 @@ fn ventana_html(operacion: &str, servidor: &str, sesion: &str, report: &str) -> 
         .replace("{{OPERACION}}", &escape(operacion))
         .replace("{{SERVIDOR}}", &escape(servidor))
         .replace("{{SESION}}", &escape(sesion))
+        .replace("{{OPCIONES_CERT}}", &opciones_certificados())
         .replace("{{DETALLE}}", &escape(report))
+}
+
+fn opciones_certificados() -> String {
+    let certs = certificados::disponibles();
+    if certs.is_empty() {
+        return "<option value=\"\">No se encontró ningún certificado (.p12/.pfx)</option>".into();
+    }
+    certs
+        .iter()
+        .map(|c| {
+            format!(
+                "<option value=\"{}\">{}</option>",
+                escape(&c.ruta.to_string_lossy()),
+                escape(&c.nombre)
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 
 fn escape(s: &str) -> String {
