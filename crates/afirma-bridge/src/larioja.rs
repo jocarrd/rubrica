@@ -43,6 +43,45 @@ impl Cliente {
         let body = response.as_str().map_err(|e| e.to_string())?;
         Ok(parse_estado(body))
     }
+
+    /// Sondea, con un id de sesión vivo, los endpoints de obtención de datos
+    /// del servidor y devuelve un informe con las respuestas crudas. Sirve para
+    /// capturar el formato real del protocolo durante una firma en la sede.
+    pub fn sondear_sesion(&self, id: &str) -> String {
+        let mut log = String::new();
+        let pruebas = [
+            ("GET", format!("{id}/origen")),
+            ("GET", format!("origen/{id}")),
+            ("POST", format!("hash/{id}")),
+            ("GET", id.to_string()),
+            ("GET", format!("config/{id}")),
+        ];
+        for (metodo, path) in &pruebas {
+            let url = self.url(path);
+            let resultado = match *metodo {
+                "POST" => minreq::post(&url)
+                    .with_header("Accept", "application/json")
+                    .with_header("Content-Type", "application/json")
+                    .with_body("{}")
+                    .with_timeout(15)
+                    .send(),
+                _ => minreq::get(&url)
+                    .with_header("Accept", "application/json")
+                    .with_timeout(15)
+                    .send(),
+            };
+            log.push_str(&format!("\n--- {metodo} {url} ---\n"));
+            match resultado {
+                Ok(r) => {
+                    let cuerpo = r.as_str().unwrap_or("(binario)");
+                    let muestra: String = cuerpo.chars().take(600).collect();
+                    log.push_str(&format!("HTTP {}\n{muestra}\n", r.status_code));
+                }
+                Err(e) => log.push_str(&format!("error: {e}\n")),
+            }
+        }
+        log
+    }
 }
 
 fn parse_estado(json: &str) -> Estado {

@@ -37,12 +37,18 @@ fn handle_url(url: &str) {
             report.push_str(&format!("id de sesión: {real_id}\n"));
         }
         if let Some(base) = protocol::url_base_from_id(id) {
-            match larioja::Cliente::new(&base).estado() {
+            let cliente = larioja::Cliente::new(&base);
+            match cliente.estado() {
                 Ok(estado) => report.push_str(&format!(
                     "estado del servicio: bloqueada={}, versión={}\n",
                     estado.bloqueada, estado.version_actual
                 )),
                 Err(e) => report.push_str(&format!("no se pudo contactar el servicio: {e}\n")),
+            }
+            // Captura del protocolo con la sesión viva (diagnóstico e2e).
+            if let Some(sesion) = protocol::id_from_carfirma_string(id) {
+                report.push_str("\n=== Sondeo de la sesión (respuestas crudas del servidor) ===");
+                report.push_str(&cliente.sondear_sesion(&sesion));
             }
         }
     }
