@@ -1,3 +1,5 @@
+mod protocol;
+
 use std::net::TcpListener;
 use tungstenite::accept;
 use tungstenite::Message;
@@ -41,6 +43,6 @@ fn handle(message: &str) -> String {
 }
 
 fn process_operation(message: &str) -> String {
-    let op = message.split('&').next().unwrap_or("");
-    format!("RUBRICA_RECEIVED:{op}")
+    let invocation = protocol::parse(message);
+    format!("RUBRICA_RECEIVED:{}", invocation.operation)
 }
