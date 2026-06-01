@@ -51,6 +51,83 @@ fn handle_url(url: &str) {
 
     print!("{report}");
     log_invocation(&report);
+    mostrar_ventana(&invocation, &report);
+}
+
+fn mostrar_ventana(invocation: &protocol::Invocation, report: &str) {
+    let servidor = invocation
+        .id
+        .as_deref()
+        .and_then(protocol::url_base_from_id)
+        .unwrap_or_else(|| "(desconocido)".into());
+    let sesion = invocation
+        .id
+        .as_deref()
+        .and_then(protocol::id_from_carfirma_string)
+        .unwrap_or_default();
+
+    let page = ventana_html(&invocation.operation, &servidor, &sesion, report);
+    let addr = std::env::var("RUBRICA_VENTANA_ADDR").unwrap_or_else(|_| "127.0.0.1:0".into());
+    let Ok(listener) = TcpListener::bind(addr) else {
+        return;
+    };
+    let port = listener.local_addr().map(|a| a.port()).unwrap_or(0);
+    abrir_navegador(&format!("http://127.0.0.1:{port}/"));
+
+    // Servimos la página a la primera (y única) visita y terminamos.
+    if let Some(Ok(mut stream)) = listener.incoming().next() {
+        use std::io::Write;
+        let _ = stream.write_all(
+            format!(
+                "HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                page.len(),
+                page
+            )
+            .as_bytes(),
+        );
+    }
+}
+
+fn abrir_navegador(url: &str) {
+    if std::env::var("RUBRICA_NO_ABRIR").is_ok() {
+        return;
+    }
+    // Abrimos una ventana de aplicación dedicada (sin pestañas ni barra de
+    // direcciones), de modo que parezca una ventana nativa de Rúbrica.
+    let navegadores = [
+        "chromium",
+        "google-chrome",
+        "chromium-browser",
+        "brave-browser",
+    ];
+    let geometria = "--app=";
+    for nav in navegadores {
+        let lanzado = std::process::Command::new(nav)
+            .arg(format!("{geometria}{url}"))
+            .arg("--window-size=560,640")
+            .spawn()
+            .is_ok();
+        if lanzado {
+            return;
+        }
+    }
+    // Si no hay navegador con modo app, recurrimos al manejador del sistema.
+    let _ = std::process::Command::new("xdg-open").arg(url).spawn();
+}
+
+fn ventana_html(operacion: &str, servidor: &str, sesion: &str, report: &str) -> String {
+    let plantilla = include_str!("ventana.html");
+    plantilla
+        .replace("{{OPERACION}}", &escape(operacion))
+        .replace("{{SERVIDOR}}", &escape(servidor))
+        .replace("{{SESION}}", &escape(sesion))
+        .replace("{{DETALLE}}", &escape(report))
+}
+
+fn escape(s: &str) -> String {
+    s.replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
 }
 
 fn log_invocation(report: &str) {

@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rúbrica · Firma desde la sede</title>
+<style>
+  :root { color-scheme: light dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: #f4f5f7;
+    color: #1a1a1a;
+    display: flex;
+    min-height: 100vh;
+    align-items: center;
+    justify-content: center;
+  }
+  .card {
+    background: #fff;
+    border-radius: 16px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.08);
+    padding: 36px 40px;
+    width: 100%;
+    max-width: 520px;
+  }
+  h1 { margin: 0 0 4px; font-size: 24px; }
+  .sub { margin: 0 0 24px; color: #666; font-size: 14px; }
+  .row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #eee; font-size: 14px; }
+  .row .k { color: #666; }
+  .row .v { font-weight: 600; text-align: right; word-break: break-all; max-width: 60%; }
+  .badge { display: inline-block; padding: 4px 10px; border-radius: 999px; background: #e7f6ec; color: #1b7a3d; font-size: 13px; font-weight: 600; margin-top: 16px; }
+  details { margin-top: 18px; }
+  summary { cursor: pointer; color: #2563eb; font-size: 13px; }
+  pre { background: #fafbfc; border: 1px solid #eee; border-radius: 8px; padding: 12px; font-size: 12px; overflow-x: auto; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <h1>Rúbrica</h1>
+    <p class="sub">Solicitud de firma recibida desde la sede electrónica</p>
+
+    <div class="row"><span class="k">Operación</span><span class="v">{{OPERACION}}</span></div>
+    <div class="row"><span class="k">Servidor</span><span class="v">{{SERVIDOR}}</span></div>
+    <div class="row"><span class="k">Sesión</span><span class="v">{{SESION}}</span></div>
+
+    <span class="badge">Invocación recibida correctamente</span>
+
+    <details>
+      <summary>Ver detalle técnico</summary>
+      <pre>{{DETALLE}}</pre>
+    </details>
+  </div>
+</body>
+</html>
