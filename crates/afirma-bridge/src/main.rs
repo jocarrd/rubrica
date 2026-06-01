@@ -76,9 +76,13 @@ fn mostrar_ventana(
         let req = leer_peticion(&mut stream);
         if req.starts_with("POST /firmar") {
             let cuerpo = req.rsplit("\r\n\r\n").next().unwrap_or("");
-            let resultado = firmar_solicitud(cuerpo, proveedor, solicitud);
+            let (resultado, ok) = firmar_solicitud(cuerpo, proveedor, solicitud);
             responder(&mut stream, "application/json", &resultado);
-            break;
+            // Solo cerramos si la firma tuvo éxito; si falló, seguimos
+            // escuchando para que el usuario pueda reintentar.
+            if ok {
+                break;
+            }
         } else {
             responder(&mut stream, "text/html; charset=utf-8", &page);
         }
@@ -136,25 +140,31 @@ fn firmar_solicitud(
     cuerpo_json: &str,
     proveedor: &dyn ProveedorSede,
     solicitud: &proveedores::Solicitud,
-) -> String {
+) -> (String, bool) {
     let cert = protocol::json_campo(cuerpo_json, "certificado").unwrap_or_default();
     let pass = protocol::json_campo(cuerpo_json, "password").unwrap_or_default();
 
     let identity = match rubrica_core::load_pkcs12(std::path::Path::new(&cert), &pass) {
         Ok(id) => id,
         Err(e) => {
-            return format!(
-                "{{\"ok\":false,\"error\":\"{}\"}}",
-                escape_json(&e.to_string())
+            return (
+                format!(
+                    "{{\"ok\":false,\"error\":\"{}\"}}",
+                    escape_json(&e.to_string())
+                ),
+                false,
             )
         }
     };
 
     let resultado = proveedor.firmar(solicitud, &identity);
-    format!(
-        "{{\"ok\":{},\"mensaje\":\"{}\"}}",
+    (
+        format!(
+            "{{\"ok\":{},\"mensaje\":\"{}\"}}",
+            resultado.ok,
+            escape_json(&resultado.mensaje)
+        ),
         resultado.ok,
-        escape_json(&resultado.mensaje)
     )
 }
 
