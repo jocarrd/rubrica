@@ -38,6 +38,20 @@ Each provider knows how to: parse its invocation URL, download the document to b
 signed from its portal's server, and return the result in the format that portal
 expects. The signing core (`rubrica-core`) is shared by all.
 
+### Three-phase signing (La Rioja)
+
+La Rioja's portal does not receive an already-signed document; it applies
+server-side three-phase signing:
+
+1. **Pre-sign:** the signer's certificate is sent (`POST hash/{id}`) and the server
+   returns the hash to be signed.
+2. **Sign:** the client signs that hash with the certificate's private key.
+3. **Post-sign:** the signature is sent back (`POST {id}`) and the server assembles
+   and stores the signed document.
+
+That is why `rubrica-core` exposes, besides full file signing, the operation of
+signing a hash (`Identity::firmar_sha256`), used by the La Rioja provider.
+
 ## Non-blocking
 
 Galicia (Chave365) and, across the board, Cl@ve Firma / FIRe are **cloud-signing**

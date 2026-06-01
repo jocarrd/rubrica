@@ -3,6 +3,7 @@ mod larioja;
 mod protocol;
 mod proveedores;
 
+use proveedores::ProveedorSede;
 use std::net::TcpListener;
 use tungstenite::accept;
 use tungstenite::Message;
@@ -49,11 +50,20 @@ fn handle_url(url: &str) {
 
     print!("{report}");
     log_invocation(&report);
-    mostrar_ventana(proveedor.nombre(), &solicitud, &report);
+    mostrar_ventana(proveedor.as_ref(), &solicitud, &report);
 }
 
-fn mostrar_ventana(proveedor: &str, solicitud: &proveedores::Solicitud, report: &str) {
-    let page = ventana_html(proveedor, &solicitud.servidor, &solicitud.sesion, report);
+fn mostrar_ventana(
+    proveedor: &dyn ProveedorSede,
+    solicitud: &proveedores::Solicitud,
+    report: &str,
+) {
+    let page = ventana_html(
+        proveedor.nombre(),
+        &solicitud.servidor,
+        &solicitud.sesion,
+        report,
+    );
     let addr = std::env::var("RUBRICA_VENTANA_ADDR").unwrap_or_else(|_| "127.0.0.1:0".into());
     let Ok(listener) = TcpListener::bind(addr) else {
         return;
@@ -61,13 +71,12 @@ fn mostrar_ventana(proveedor: &str, solicitud: &proveedores::Solicitud, report: 
     let port = listener.local_addr().map(|a| a.port()).unwrap_or(0);
     abrir_navegador(&format!("http://127.0.0.1:{port}/"));
 
-    let documento = solicitud.documento.clone();
     for stream in listener.incoming() {
         let Ok(mut stream) = stream else { continue };
         let req = leer_peticion(&mut stream);
         if req.starts_with("POST /firmar") {
             let cuerpo = req.rsplit("\r\n\r\n").next().unwrap_or("");
-            let resultado = firmar_solicitud(cuerpo, documento.as_deref());
+            let resultado = firmar_solicitud(cuerpo, proveedor, solicitud);
             responder(&mut stream, "application/json", &resultado);
             break;
         } else {
@@ -94,13 +103,14 @@ fn responder(stream: &mut std::net::TcpStream, tipo: &str, cuerpo: &str) {
     );
 }
 
-fn firmar_solicitud(cuerpo_json: &str, documento: Option<&[u8]>) -> String {
+fn firmar_solicitud(
+    cuerpo_json: &str,
+    proveedor: &dyn ProveedorSede,
+    solicitud: &proveedores::Solicitud,
+) -> String {
     let cert = protocol::json_campo(cuerpo_json, "certificado").unwrap_or_default();
     let pass = protocol::json_campo(cuerpo_json, "password").unwrap_or_default();
 
-    let Some(pdf) = documento else {
-        return "{\"ok\":false,\"error\":\"no se pudo descargar el documento de la sede\"}".into();
-    };
     let identity = match rubrica_core::load_pkcs12(std::path::Path::new(&cert), &pass) {
         Ok(id) => id,
         Err(e) => {
@@ -110,17 +120,13 @@ fn firmar_solicitud(cuerpo_json: &str, documento: Option<&[u8]>) -> String {
             )
         }
     };
-    match rubrica_core::formats::pades::sign(pdf, &identity) {
-        Ok(firmado) => {
-            let salida = format!("{}/.rubrica-firmado.pdf", env_home());
-            let _ = std::fs::write(&salida, &firmado);
-            format!("{{\"ok\":true,\"bytes\":{}}}", firmado.len())
-        }
-        Err(e) => format!(
-            "{{\"ok\":false,\"error\":\"{}\"}}",
-            escape_json(&e.to_string())
-        ),
-    }
+
+    let resultado = proveedor.firmar(solicitud, &identity);
+    format!(
+        "{{\"ok\":{},\"mensaje\":\"{}\"}}",
+        resultado.ok,
+        escape_json(&resultado.mensaje)
+    )
 }
 
 fn escape_json(s: &str) -> String {

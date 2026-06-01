@@ -38,6 +38,21 @@ Cada proveedor sabe: interpretar su URL de invocación, descargar el documento a
 firmar del servidor de su sede, y devolver el resultado en el formato que esa sede
 espera. El núcleo de firma (`rubrica-core`) es común a todos.
 
+### Firma trifásica (La Rioja)
+
+La sede de La Rioja no recibe el documento ya firmado, sino que aplica firma
+trifásica del lado del servidor:
+
+1. **Pre-firma:** se envía el certificado del firmante (`POST hash/{id}`) y el
+   servidor devuelve el hash a firmar.
+2. **Firma:** el cliente firma ese hash con la clave privada del certificado.
+3. **Post-firma:** se devuelve la firma (`POST {id}`) y el servidor ensambla y
+   guarda el documento firmado.
+
+Por eso `rubrica-core` expone, además de la firma completa de ficheros, la
+operación de firmar un hash (`Identity::firmar_sha256`), que usa el proveedor de
+La Rioja.
+
 ## No bloqueantes
 
 Galicia (Chave365) y, transversalmente, Cl@ve Firma / FIRe son sistemas de **firma en

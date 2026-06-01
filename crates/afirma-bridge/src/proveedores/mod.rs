@@ -31,6 +31,32 @@ pub trait ProveedorSede {
     /// Prepara la solicitud de firma a partir de la invocación recibida:
     /// extrae servidor y sesión y descarga el documento a firmar.
     fn preparar(&self, invocation: &Invocation) -> Solicitud;
+
+    /// Ejecuta la operación de firma con la identidad elegida y devuelve un
+    /// resultado legible. Cada sede aplica su protocolo (trifásico de servidor
+    /// en La Rioja; firma local en AutoFirma).
+    fn firmar(&self, solicitud: &Solicitud, identity: &rubrica_core::Identity) -> ResultadoFirma;
+}
+
+/// Resultado de una operación de firma frente a una sede.
+pub struct ResultadoFirma {
+    pub ok: bool,
+    pub mensaje: String,
+}
+
+impl ResultadoFirma {
+    pub fn ok(mensaje: impl Into<String>) -> Self {
+        Self {
+            ok: true,
+            mensaje: mensaje.into(),
+        }
+    }
+    pub fn error(mensaje: impl Into<String>) -> Self {
+        Self {
+            ok: false,
+            mensaje: mensaje.into(),
+        }
+    }
 }
 
 /// Devuelve el proveedor adecuado para el esquema de la URL de invocación.

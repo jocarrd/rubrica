@@ -32,19 +32,77 @@ impl Cliente {
         format!("{}/{PATH_RAIZ}/{path}", self.url_base)
     }
 
-    /// Descarga el PDF a firmar siguiendo el flujo real de la sede:
-    /// `origen/{sesion}` da los metadatos (incluido el id del documento),
-    /// y `origen/{idDocumento}` devuelve el PDF en base64.
-    pub fn documento_a_firmar(&self, sesion: &str) -> Option<Vec<u8>> {
+    /// Devuelve el id del documento asociado a una sesión, leyendo sus metadatos.
+    pub fn id_documento(&self, sesion: &str) -> Option<String> {
         let meta_b64 = contenido_de(&self.url(&format!("origen/{sesion}")))?;
         let meta = decode_b64(&meta_b64)?;
         let meta_txt = String::from_utf8_lossy(&meta);
-        let doc_id = meta_txt.rsplit('|').next()?.trim();
+        let doc_id = meta_txt.rsplit('|').next()?.trim().to_string();
         if doc_id.is_empty() {
-            return None;
+            None
+        } else {
+            Some(doc_id)
         }
+    }
+
+    /// Descarga el PDF a firmar (para previsualización). El flujo de firma real
+    /// de la sede es trifásico y no necesita el PDF completo (ver `prefirma`).
+    pub fn documento_a_firmar(&self, sesion: &str) -> Option<Vec<u8>> {
+        let doc_id = self.id_documento(sesion)?;
         let pdf_b64 = contenido_de(&self.url(&format!("origen/{doc_id}")))?;
         decode_b64(&pdf_b64)
+    }
+
+    /// Fase 1 (pre-firma): envía el certificado del firmante y la sede devuelve
+    /// el hash que hay que firmar con la clave privada (firma trifásica).
+    /// `cert_der` es el certificado del firmante en DER; `root_der` la raíz.
+    pub fn prefirma(
+        &self,
+        doc_id: &str,
+        cert_der: &[u8],
+        root_der: Option<&[u8]>,
+    ) -> Result<Vec<u8>, String> {
+        let mut body = format!("{{\"contenido\":\"{}\"", b64(cert_der));
+        if let Some(root) = root_der {
+            body.push_str(&format!(",\"root\":\"{}\"", b64(root)));
+        }
+        body.push('}');
+
+        let r = minreq::post(self.url(&format!("hash/{doc_id}")))
+            .with_header("Content-Type", "application/json")
+            .with_header("Accept", "application/json")
+            .with_body(body)
+            .with_timeout(20)
+            .send()
+            .map_err(|e| e.to_string())?;
+        if r.status_code != 200 {
+            return Err(format!(
+                "pre-firma: el servidor respondió {}",
+                r.status_code
+            ));
+        }
+        let hash_b64 = campo(r.as_str().map_err(|e| e.to_string())?, "contenido")
+            .ok_or("la pre-firma no devolvió contenido")?;
+        decode_b64(&hash_b64).ok_or_else(|| "hash no es base64".into())
+    }
+
+    /// Fase 3 (post-firma): sube la firma del hash; la sede ensambla y guarda
+    /// el documento firmado.
+    pub fn finalizar(&self, doc_id: &str, firma: &[u8]) -> Result<(), String> {
+        let body = format!("{{\"contenido\":\"{}\"}}", b64(firma));
+        let r = minreq::post(self.url(doc_id))
+            .with_header("Content-Type", "application/json")
+            .with_body(body)
+            .with_timeout(20)
+            .send()
+            .map_err(|e| e.to_string())?;
+        if r.status_code >= 300 {
+            return Err(format!(
+                "post-firma: el servidor respondió {}",
+                r.status_code
+            ));
+        }
+        Ok(())
     }
 
     /// Consulta el estado del servicio. No requiere sesión.
@@ -137,6 +195,12 @@ fn decode_b64(s: &str) -> Option<Vec<u8>> {
     use base64::engine::general_purpose::STANDARD;
     use base64::Engine;
     STANDARD.decode(s).ok()
+}
+
+fn b64(data: &[u8]) -> String {
+    use base64::engine::general_purpose::STANDARD;
+    use base64::Engine;
+    STANDARD.encode(data)
 }
 
 #[cfg(test)]

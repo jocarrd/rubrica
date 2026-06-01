@@ -47,18 +47,20 @@ mod tests {
     use super::*;
 
     #[test]
-    fn detecta_p12_en_directorio_temporal() {
-        let dir = std::env::temp_dir().join("rubrica-test-certs");
-        let _ = std::fs::create_dir_all(&dir);
-        let p12 = dir.join("mi-cert.p12");
+    fn detecta_p12_en_el_home() {
+        let home = std::env::temp_dir().join("rubrica-home-test");
+        let _ = std::fs::create_dir_all(&home);
+        let p12 = home.join("CERT_PRUEBA.p12");
         std::fs::write(&p12, b"dummy").unwrap();
 
-        // Reutilizamos la lógica de extensión sobre una entrada concreta.
-        let ext = p12
-            .extension()
-            .and_then(|e| e.to_str())
-            .map(|e| e.to_ascii_lowercase());
-        assert_eq!(ext.as_deref(), Some("p12"));
+        let previo = std::env::var("HOME").ok();
+        std::env::set_var("HOME", &home);
+        let encontrados = disponibles();
+        if let Some(h) = previo {
+            std::env::set_var("HOME", h);
+        }
+
+        assert!(encontrados.iter().any(|c| c.nombre == "CERT_PRUEBA.p12"));
         let _ = std::fs::remove_file(&p12);
     }
 }
