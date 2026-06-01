@@ -1,7 +1,6 @@
 use anyhow::{anyhow, bail, Context, Result};
 use cms::builder::{SignedDataBuilder, SignerInfoBuilder};
 use cms::cert::CertificateChoices;
-use cms::content_info::ContentInfo;
 use cms::signed_data::{EncapsulatedContentInfo, SignerIdentifier};
 use const_oid::db::rfc5912::ID_SHA_256;
 use der::asn1::{OctetStringRef, SetOfVec};
@@ -219,7 +218,7 @@ fn build_cms_detached(message_digest: &[u8], signer: &Signer) -> Result<Vec<u8>>
         .add_signed_attribute(signing_certificate_v2(&signer.cert)?)
         .map_err(|e| anyhow!("añadiendo signing-certificate-v2: {e:?}"))?;
 
-    let builder = SignedDataBuilder::new(&econtent)
+    let content_info = SignedDataBuilder::new(&econtent)
         .add_digest_algorithm(digest_algorithm)
         .map_err(|e| anyhow!("digest alg: {e:?}"))?
         .add_certificate(CertificateChoices::Certificate(signer.cert.clone()))
@@ -229,11 +228,9 @@ fn build_cms_detached(message_digest: &[u8], signer: &Signer) -> Result<Vec<u8>>
         .build()
         .map_err(|e| anyhow!("construyendo SignedData: {e:?}"))?;
 
-    let ci = ContentInfo {
-        content_type: const_oid::db::rfc5911::ID_SIGNED_DATA,
-        content: Any::encode_from(&builder).map_err(|e| anyhow!("encode ContentInfo: {e:?}"))?,
-    };
-    ci.to_der().map_err(|e| anyhow!("DER ContentInfo: {e:?}"))
+    content_info
+        .to_der()
+        .map_err(|e| anyhow!("DER ContentInfo: {e:?}"))
 }
 
 fn signing_certificate_v2(cert: &Certificate) -> Result<Attribute> {
