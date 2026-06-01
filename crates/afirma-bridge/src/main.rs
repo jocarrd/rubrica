@@ -1,6 +1,7 @@
 mod certificados;
 mod larioja;
 mod protocol;
+mod proveedores;
 
 use std::net::TcpListener;
 use tungstenite::accept;
@@ -11,10 +12,10 @@ const ECHO_OK: &str = "OK";
 const PORTS: [u16; 5] = [63117, 63118, 63119, 63120, 63121];
 
 fn main() {
-    // Modo manejador de protocolo: el sistema nos invoca con la URL carfirma://
-    // o afirma:// cuando el usuario pulsa "Firmar" en una sede.
+    // Modo manejador de protocolo: el sistema nos invoca con la URL de la sede
+    // (carfirma://, afirma:// o idazki://) al pulsar "Firmar".
     if let Some(url) = std::env::args().nth(1) {
-        if url.starts_with("carfirma://") || url.starts_with("afirma://") {
+        if es_invocacion(&url) {
             handle_url(&url);
             return;
         }
@@ -22,58 +23,37 @@ fn main() {
     serve();
 }
 
+fn es_invocacion(url: &str) -> bool {
+    url.starts_with("carfirma://") || url.starts_with("afirma://") || url.starts_with("idazki://")
+}
+
 fn handle_url(url: &str) {
     let invocation = protocol::parse(url);
+    let proveedor = proveedores::para_esquema(url);
+    let solicitud = proveedor.preparar(&invocation);
+
     let mut report = String::new();
     report.push_str("=== Invocación recibida desde la sede ===\n");
     report.push_str(&format!("URL completa:\n{url}\n\n"));
+    report.push_str(&format!("proveedor: {}\n", proveedor.nombre()));
     report.push_str(&format!("operación: {}\n", invocation.operation));
-    if let Some(id) = &invocation.id {
-        report.push_str(&format!("id (crudo): {id}\n"));
-        if let Some(base) = protocol::url_base_from_id(id) {
-            report.push_str(&format!("servidor de firma (urlBase): {base}\n"));
+    report.push_str(&format!("servidor: {}\n", solicitud.servidor));
+    report.push_str(&format!("sesión: {}\n", solicitud.sesion));
+    report.push_str(&format!(
+        "documento: {}\n",
+        match &solicitud.documento {
+            Some(d) => format!("{} bytes descargados", d.len()),
+            None => "no se pudo descargar (¿sesión caducada?)".to_string(),
         }
-        if let Some(real_id) = protocol::id_from_carfirma_string(id) {
-            report.push_str(&format!("id de sesión: {real_id}\n"));
-        }
-        if let Some(base) = protocol::url_base_from_id(id) {
-            let cliente = larioja::Cliente::new(&base);
-            match cliente.estado() {
-                Ok(estado) => report.push_str(&format!(
-                    "estado del servicio: bloqueada={}, versión={}\n",
-                    estado.bloqueada, estado.version_actual
-                )),
-                Err(e) => report.push_str(&format!("no se pudo contactar el servicio: {e}\n")),
-            }
-            // Captura del protocolo con la sesión viva (diagnóstico e2e).
-            if let Some(sesion) = protocol::id_from_carfirma_string(id) {
-                report.push_str("\n=== Sondeo de la sesión (respuestas crudas del servidor) ===");
-                report.push_str(&cliente.sondear_sesion(&sesion));
-            }
-        }
-    }
-    if let Some(fmt) = &invocation.format {
-        report.push_str(&format!("formato: {fmt}\n"));
-    }
+    ));
 
     print!("{report}");
     log_invocation(&report);
-    mostrar_ventana(&invocation, &report);
+    mostrar_ventana(proveedor.nombre(), &solicitud, &report);
 }
 
-fn mostrar_ventana(invocation: &protocol::Invocation, report: &str) {
-    let servidor = invocation
-        .id
-        .as_deref()
-        .and_then(protocol::url_base_from_id)
-        .unwrap_or_else(|| "(desconocido)".into());
-    let sesion = invocation
-        .id
-        .as_deref()
-        .and_then(protocol::id_from_carfirma_string)
-        .unwrap_or_default();
-
-    let page = ventana_html(&invocation.operation, &servidor, &sesion, report);
+fn mostrar_ventana(proveedor: &str, solicitud: &proveedores::Solicitud, report: &str) {
+    let page = ventana_html(proveedor, &solicitud.servidor, &solicitud.sesion, report);
     let addr = std::env::var("RUBRICA_VENTANA_ADDR").unwrap_or_else(|_| "127.0.0.1:0".into());
     let Ok(listener) = TcpListener::bind(addr) else {
         return;
@@ -81,13 +61,7 @@ fn mostrar_ventana(invocation: &protocol::Invocation, report: &str) {
     let port = listener.local_addr().map(|a| a.port()).unwrap_or(0);
     abrir_navegador(&format!("http://127.0.0.1:{port}/"));
 
-    let documento = invocation
-        .id
-        .as_deref()
-        .and_then(protocol::url_base_from_id)
-        .zip(sesion_no_vacia(&sesion))
-        .and_then(|(base, ses)| larioja::Cliente::new(&base).documento_a_firmar(&ses));
-
+    let documento = solicitud.documento.clone();
     for stream in listener.incoming() {
         let Ok(mut stream) = stream else { continue };
         let req = leer_peticion(&mut stream);
@@ -99,14 +73,6 @@ fn mostrar_ventana(invocation: &protocol::Invocation, report: &str) {
         } else {
             responder(&mut stream, "text/html; charset=utf-8", &page);
         }
-    }
-}
-
-fn sesion_no_vacia(s: &str) -> Option<String> {
-    if s.is_empty() {
-        None
-    } else {
-        Some(s.to_string())
     }
 }
 

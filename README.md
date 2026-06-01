@@ -74,6 +74,7 @@ rubrica verify documento-firmado.pdf
 ## Documentación
 
 - [Arquitectura](docs/es/arquitectura.md)
+- [Compatibilidad con las comunidades autónomas](docs/es/compatibilidad-ccaa.md)
 - [Guía de contribución](CONTRIBUTING.md)
 - English documentation: [README.en.md](README.en.md) · [architecture](docs/en/architecture.md)
 

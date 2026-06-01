@@ -73,6 +73,7 @@ rubrica verify document-signed.pdf
 ## Documentation
 
 - [Architecture](docs/en/architecture.md)
+- [Compatibility with the autonomous communities](docs/en/regional-compatibility.md)
 - [Contributing](CONTRIBUTING.md)
 - Documentación en español: [README.md](README.md) · [arquitectura](docs/es/arquitectura.md)
 

@@ -22,14 +22,16 @@ Exec=${BIN_DIR}/rubrica-bridge %u
 Icon=rubrica
 Terminal=false
 Categories=Office;Security;
-MimeType=x-scheme-handler/carfirma;x-scheme-handler/afirma;
+MimeType=x-scheme-handler/carfirma;x-scheme-handler/afirma;x-scheme-handler/idazki;
 StartupNotify=false
 EOF
 
 update-desktop-database "$APP_DIR" 2>/dev/null || true
 xdg-mime default rubrica.desktop x-scheme-handler/carfirma
 xdg-mime default rubrica.desktop x-scheme-handler/afirma
+xdg-mime default rubrica.desktop x-scheme-handler/idazki
 
 echo "Rúbrica registrada como manejador de:"
 echo "  carfirma:// -> $(xdg-mime query default x-scheme-handler/carfirma)"
 echo "  afirma://   -> $(xdg-mime query default x-scheme-handler/afirma)"
+echo "  idazki://   -> $(xdg-mime query default x-scheme-handler/idazki)"

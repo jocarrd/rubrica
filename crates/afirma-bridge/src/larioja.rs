@@ -4,17 +4,20 @@
 //! La URL base llega embebida en la invocación `carfirma://` (campo `id`).
 
 const PATH_RAIZ: &str = "servicioFirma/firmas";
+#[allow(dead_code)]
 const PATH_STATUS: &str = "status";
 
 pub struct Cliente {
     url_base: String,
 }
 
+// Diagnóstico del servicio: se conserva para inspeccionar el estado y el
+// protocolo de una sesión real cuando se depura la integración.
+#[allow(dead_code)]
 #[derive(Debug)]
 pub struct Estado {
     pub bloqueada: bool,
     pub version_actual: String,
-    #[allow(dead_code)]
     pub version_minima: String,
 }
 
@@ -45,6 +48,7 @@ impl Cliente {
     }
 
     /// Consulta el estado del servicio. No requiere sesión.
+    #[allow(dead_code)]
     pub fn estado(&self) -> Result<Estado, String> {
         let url = self.url(PATH_STATUS);
         let response = minreq::get(&url)
@@ -62,6 +66,7 @@ impl Cliente {
     /// Sondea, con un id de sesión vivo, los endpoints de obtención de datos
     /// del servidor y devuelve un informe con las respuestas crudas. Sirve para
     /// capturar el formato real del protocolo durante una firma en la sede.
+    #[allow(dead_code)]
     pub fn sondear_sesion(&self, id: &str) -> String {
         let mut log = String::new();
         let pruebas = [
