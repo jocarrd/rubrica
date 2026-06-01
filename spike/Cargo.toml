@@ -14,20 +14,15 @@ name = "rubrica-spike"
 path = "src/main.rs"
 
 [dependencies]
-# Manipulación de PDF: insertar /ByteRange + /Contents (firma incremental)
-lopdf = "0.34"
-
-# CMS / PKCS#7 detached con atributos firmados ETSI (el corazón de PAdES)
 cms = { version = "0.2", features = ["builder"] }
-x509-cert = "0.2"
+x509-cert = { version = "0.2", features = ["pem"] }
 rsa = { version = "0.9", features = ["sha2"] }
 sha2 = "0.10"
-der = "0.7"
+der = { version = "0.7", features = ["oid"] }
 const-oid = { version = "0.9", features = ["db"] }
-
-# Carga del certificado de prueba PKCS#12 (.p12)
+spki = "0.7"
+pkcs8 = { version = "0.10", features = ["pkcs5", "encryption"] }
 p12 = "0.6"
-
-# CLI mínima + errores
+hex = "0.4"
 anyhow = "1"
 clap = { version = "4", features = ["derive"] }
