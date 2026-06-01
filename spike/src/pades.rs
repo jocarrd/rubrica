@@ -23,8 +23,7 @@ pub struct Signer {
 
 impl Signer {
     pub fn from_pkcs12(path: &Path, password: &str) -> Result<Self> {
-        let raw = std::fs::read(path)
-            .with_context(|| format!("leyendo {}", path.display()))?;
+        let raw = std::fs::read(path).with_context(|| format!("leyendo {}", path.display()))?;
         let pfx = p12::PFX::parse(&raw).map_err(|e| anyhow!("PKCS#12 inválido: {e:?}"))?;
 
         let key_der = pfx
@@ -41,8 +40,8 @@ impl Signer {
             .into_iter()
             .next()
             .ok_or_else(|| anyhow!("el PKCS#12 no contiene certificado"))?;
-        let cert = Certificate::from_der(&cert_der)
-            .map_err(|e| anyhow!("certificado inválido: {e}"))?;
+        let cert =
+            Certificate::from_der(&cert_der).map_err(|e| anyhow!("certificado inválido: {e}"))?;
 
         Ok(Self { key, cert })
     }
@@ -114,7 +113,10 @@ fn prepare_incremental(pdf: &[u8]) -> Result<(Vec<u8>, ByteRange, ContentsSpan)>
     out.extend_from_slice(format!("{annot_obj} 0 obj\n<< /Type /Annot /Subtype /Widget /FT /Sig /Rect [0 0 0 0] /T (Rubrica Signature) /V {sig_obj} 0 R /P {page_ref} 0 R /F 132 >>\nendobj\n").as_bytes());
 
     let acroform_offset = out.len();
-    out.extend_from_slice(format!("{acroform_obj} 0 obj\n<< /Fields [{annot_obj} 0 R] /SigFlags 3 >>\nendobj\n").as_bytes());
+    out.extend_from_slice(
+        format!("{acroform_obj} 0 obj\n<< /Fields [{annot_obj} 0 R] /SigFlags 3 >>\nendobj\n")
+            .as_bytes(),
+    );
 
     let catalog_offset = out.len();
     out.extend_from_slice(format!("{catalog_obj} 0 obj\n<< /Type /Catalog /Pages {root_pages} 0 R /AcroForm {acroform_obj} 0 R >>\nendobj\n", root_pages = find_pages_ref(pdf)?).as_bytes());
@@ -151,11 +153,7 @@ fn prepare_incremental(pdf: &[u8]) -> Result<(Vec<u8>, ByteRange, ContentsSpan)>
 
     write_byte_range(&mut out, sig_obj_offset, &byte_range)?;
 
-    Ok((
-        out,
-        byte_range,
-        ContentsSpan { hex_start, hex_len },
-    ))
+    Ok((out, byte_range, ContentsSpan { hex_start, hex_len }))
 }
 
 fn write_byte_range(out: &mut [u8], search_from: usize, br: &ByteRange) -> Result<()> {
@@ -194,14 +192,9 @@ fn build_cms_detached(message_digest: &[u8], signer: &Signer) -> Result<Vec<u8>>
         serial_number: signer.cert.tbs_certificate.serial_number.clone(),
     });
 
-    let mut signer_info = SignerInfoBuilder::new(
-        &signing_key,
-        sid,
-        digest_algorithm.clone(),
-        &econtent,
-        None,
-    )
-    .map_err(|e| anyhow!("creando SignerInfoBuilder: {e:?}"))?;
+    let mut signer_info =
+        SignerInfoBuilder::new(&signing_key, sid, digest_algorithm.clone(), &econtent, None)
+            .map_err(|e| anyhow!("creando SignerInfoBuilder: {e:?}"))?;
 
     let md_attr = Attribute {
         oid: const_oid::db::rfc5911::ID_MESSAGE_DIGEST,
@@ -318,7 +311,10 @@ fn find_pages_ref(pdf: &[u8]) -> Result<u32> {
 fn find_first_page_ref(pdf: &[u8]) -> Result<u32> {
     let pos = find_from(pdf, b"/Kids", 0).ok_or_else(|| anyhow!("Pages sin /Kids"))?;
     let tail = &pdf[pos..];
-    let open = tail.iter().position(|b| *b == b'[').ok_or_else(|| anyhow!("/Kids sin ["))?;
+    let open = tail
+        .iter()
+        .position(|b| *b == b'[')
+        .ok_or_else(|| anyhow!("/Kids sin ["))?;
     obj_ref_after(&tail[open..], b"[").context("/Kids vacío")
 }
 
@@ -331,7 +327,9 @@ fn obj_ref_after(hay: &[u8], key: &[u8]) -> Result<u32> {
         .take_while(|b| b.is_ascii_digit())
         .map(|b| *b as char)
         .collect();
-    num.trim().parse().context("referencia de objeto no numérica")
+    num.trim()
+        .parse()
+        .context("referencia de objeto no numérica")
 }
 
 fn max_obj_number(pdf: &[u8]) -> Result<u32> {
@@ -343,7 +341,11 @@ fn max_obj_number(pdf: &[u8]) -> Result<u32> {
         while j > 0 && pdf[j - 1].is_ascii_digit() {
             j -= 1;
         }
-        if let Ok(n) = std::str::from_utf8(&pdf[j..p]).unwrap_or("").trim().parse::<u32>() {
+        if let Ok(n) = std::str::from_utf8(&pdf[j..p])
+            .unwrap_or("")
+            .trim()
+            .parse::<u32>()
+        {
             max = max.max(n);
         }
         i = p + needle.len();

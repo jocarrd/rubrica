@@ -11,35 +11,44 @@ ese trazo: firmar y validar documentos con DNIe, certificado FNMT y certificados
 software, sin Java, con buena experiencia de uso y un empaquetado que simplemente
 funciona.
 
-## Por qué
+## Características
 
-AutoFirma es el cliente oficial de firma en España. Funciona, pero arrastra un
-runtime de Java, instaladores frágiles y una integración con el navegador que se
-rompe a menudo, especialmente en Linux. Rúbrica no reinventa la criptografía de
-firma —que son estándares abiertos (ETSI XAdES, CAdES, PAdES, ASiC)— sino la
-experiencia, el empaquetado y la integración.
+- Firma de documentos en los formatos estándar de la administración española:
+  **PAdES** (PDF), **CAdES** (binario) y **XAdES** (XML).
+- Perfiles ETSI desde firma básica (**-B**) hasta sello de tiempo (**-T**) y
+  niveles de conservación a largo plazo.
+- Acceso a claves mediante **DNIe** y tarjetas criptográficas (PKCS#11),
+  certificados **PKCS#12** (`.p12`/`.pfx`) y el almacén **NSS** del sistema.
+- Validación de firmas contra las herramientas oficiales.
+- Binario nativo de 64 bits, sin dependencias de Java.
 
-## Estado
+## Componentes
 
-Sprint 0 — *de-risk*. Antes de construir el producto, validamos lo único que
-puede tumbar el proyecto: **¿puede Rust generar firmas que los validadores
-oficiales acepten?**
+| Componente | Descripción |
+|------------|-------------|
+| `rubrica-core` | Núcleo de firma y validación. Toda la lógica, sin interfaz. |
+| `rubrica-cli` | Interfaz de línea de comandos sobre el núcleo. |
+| `rubrica` (app) | Aplicación de escritorio con interfaz gráfica nativa. |
+| `afirma-bridge` | Puente del protocolo `afirma://` para integrarse con las sedes. |
 
-Ver [`spike/`](spike/): firmador PAdES-B de prueba y criterio de continuación
-(go/no-go). Si el spike pasa [VALIDe](https://valide.redsara.es) o el
-[demo DSS](https://ec.europa.eu/digital-building-blocks/DSS/webapp-demo/validation)
-de la Comisión Europea, levantamos el workspace completo descrito en la
-[arquitectura](docs/es/arquitectura.md).
+## Instalación
 
-## Hoja de ruta
+> Distribución mediante **AppImage** y **Flatpak** en Linux. Windows y macOS
+> llegarán más adelante.
 
-| Fase | Objetivo |
-|------|----------|
-| 0 | **Spike**: firmar PAdES-B y validar contra herramientas oficiales |
-| 1 | **MVP local**: firmar/validar PAdES + CAdES (-B/-T) con PKCS#12 y DNIe; AppImage Linux |
-| 2 | XAdES y validación avanzada (-LT) |
-| 3 | Puente del protocolo `afirma://` para integrarse con sedes reales |
-| 4 | Windows/macOS, Flatpak, comunidad |
+Para firmar con DNIe o tarjeta criptográfica se necesitan los módulos PKCS#11 del
+sistema:
+
+```bash
+sudo apt install opensc pcscd
+```
+
+## Uso
+
+```bash
+rubrica sign --in documento.pdf --cert mi-certificado.p12 --out documento-firmado.pdf
+rubrica verify documento-firmado.pdf
+```
 
 ## Documentación
 

@@ -1,7 +1,6 @@
 /target
 **/*.rs.bk
 Cargo.lock
-# Material de pruebas con claves — NUNCA commitear claves reales
 /spike/fixtures/*.p12
 /spike/fixtures/*.pfx
 /spike/out/

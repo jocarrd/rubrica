@@ -1,0 +1,21 @@
+[package]
+name = "rubrica-core"
+version = "0.1.0"
+description = "Núcleo de firma y validación electrónica para los formatos de la administración española"
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+cms.workspace = true
+x509-cert.workspace = true
+rsa.workspace = true
+sha2.workspace = true
+der.workspace = true
+const-oid.workspace = true
+spki.workspace = true
+p12.workspace = true
+hex.workspace = true
+thiserror.workspace = true

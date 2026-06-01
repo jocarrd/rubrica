@@ -1,0 +1,18 @@
+[package]
+name = "rubrica-cli"
+version = "0.1.0"
+description = "Interfaz de línea de comandos de Rúbrica"
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[[bin]]
+name = "rubrica"
+path = "src/main.rs"
+
+[dependencies]
+rubrica-core = { path = "../rubrica-core" }
+clap.workspace = true
+anyhow.workspace = true

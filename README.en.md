@@ -11,35 +11,43 @@ be that stroke: signing and validating documents with the Spanish national eID
 (DNIe), FNMT certificates and software certificates — no Java, good UX, and
 packaging that just works.
 
-## Why
+## Features
 
-AutoFirma is the official signing client in Spain. It works, but it ships a Java
-runtime, brittle installers and browser integration that breaks often, especially
-on Linux. Rúbrica does not reinvent signature cryptography — those are open
-standards (ETSI XAdES, CAdES, PAdES, ASiC) — it reinvents the experience, the
-packaging and the integration.
+- Signs documents in the standard formats of the Spanish administration:
+  **PAdES** (PDF), **CAdES** (binary) and **XAdES** (XML).
+- ETSI profiles from baseline (**-B**) to timestamped (**-T**) and long-term
+  preservation levels.
+- Key access via **DNIe** and smart cards (PKCS#11), **PKCS#12** certificates
+  (`.p12`/`.pfx`) and the system **NSS** store.
+- Signature validation against the official tools.
+- Native 64-bit binary, no Java dependency.
 
-## Status
+## Components
 
-Sprint 0 — de-risk. Before building the product we validate the one thing that
-can kill it: **can Rust produce signatures that official validators accept?**
+| Component | Description |
+|-----------|-------------|
+| `rubrica-core` | Signing and validation core. All logic, no UI. |
+| `rubrica-cli` | Command-line interface over the core. |
+| `rubrica` (app) | Desktop application with a native GUI. |
+| `afirma-bridge` | `afirma://` protocol bridge to integrate with the portals. |
 
-See [`spike/`](spike/): a proof-of-concept PAdES-B signer and the go/no-go
-criterion. If the spike passes [VALIDe](https://valide.redsara.es) or the European
-Commission's
-[DSS demo](https://ec.europa.eu/digital-building-blocks/DSS/webapp-demo/validation),
-we stand up the full workspace described in the
-[architecture](docs/en/architecture.md).
+## Installation
 
-## Roadmap
+> Distributed as an **AppImage** and **Flatpak** on Linux. Windows and macOS will
+> follow.
 
-| Phase | Goal |
-|-------|------|
-| 0 | **Spike**: sign PAdES-B and validate against official tools |
-| 1 | **Local MVP**: sign/validate PAdES + CAdES (-B/-T) with PKCS#12 and DNIe; Linux AppImage |
-| 2 | XAdES and advanced validation (-LT) |
-| 3 | `afirma://` protocol bridge to integrate with real portals |
-| 4 | Windows/macOS, Flatpak, community |
+Signing with a DNIe or smart card requires the system PKCS#11 modules:
+
+```bash
+sudo apt install opensc pcscd
+```
+
+## Usage
+
+```bash
+rubrica sign --in document.pdf --cert my-certificate.p12 --out document-signed.pdf
+rubrica verify document-signed.pdf
+```
 
 ## Documentation
 
