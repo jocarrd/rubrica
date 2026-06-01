@@ -15,4 +15,5 @@ path = "src/main.rs"
 [dependencies]
 rubrica-core = { path = "../rubrica-core" }
 tungstenite = "0.24"
+minreq = { version = "2", features = ["https-rustls"] }
 anyhow.workspace = true
