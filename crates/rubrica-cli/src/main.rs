@@ -55,7 +55,8 @@ fn verify(args: VerifyArgs) -> Result<()> {
 
     let signer = report
         .signer_common_name
-        .unwrap_or_else(|| "(desconocido)".into());
+        .as_deref()
+        .unwrap_or("(desconocido)");
     println!("Firmante: {signer}");
     println!(
         "Integridad del documento: {}",
