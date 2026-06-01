@@ -21,3 +21,4 @@ hex.workspace = true
 thiserror.workspace = true
 p12-keystore = "0.2.1"
 minreq = { version = "2", features = ["https-rustls"] }
+base64 = "0.22"

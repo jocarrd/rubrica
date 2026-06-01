@@ -90,3 +90,13 @@ fn carga_pkcs12_moderno_aes_y_firma() {
     let report = formats::pades::verify(&signed).expect("verificar");
     assert!(report.is_valid());
 }
+
+#[test]
+fn xades_produce_xml_dsig() {
+    let xml = formats::xades::sign(b"Hola Rubrica", &identity()).expect("firmar XAdES");
+    let texto = String::from_utf8(xml).expect("XML válido en UTF-8");
+    assert!(texto.contains("<Signature"));
+    assert!(texto.contains("<SignedInfo"));
+    assert!(texto.contains("<SignatureValue>"));
+    assert!(texto.contains("<X509Certificate>"));
+}
