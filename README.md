@@ -47,6 +47,8 @@ sudo apt install opensc pcscd
 
 ```bash
 rubrica sign --in documento.pdf --cert mi-certificado.p12 --out documento-firmado.pdf
+rubrica sign --in documento.pdf --cert mi-certificado.p12 --out firmado.pdf --timestamp
+rubrica sign --in documento.xml --cert mi-certificado.p12 --out firmado.xml --format xades
 rubrica verify documento-firmado.pdf
 ```
 
