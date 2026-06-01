@@ -70,6 +70,8 @@ invokes the AutoFirma protocol, which has two mechanisms:
 - it starts a local server on `127.0.0.1` speaking a JSON protocol with commands
   (`sign`, `cosign`, `batch`; base64 parameters).
 
+The `afirma-bridge` crate implements that local WebSocket server: it answers the
+detection handshake (`echo=` → `OK`) that portals use to locate the signing client.
 Compatibility with that protocol is built from its public specification; no code is
 ported from `clienteafirma`.
 

@@ -27,6 +27,7 @@ no Java, good UX, and packaging that just works.
 | `rubrica-core` | Signing and validation core. All logic, no UI. |
 | `rubrica-cli` | Command-line interface over the core. |
 | `rubrica-gui` | Local web interface served by the binary itself. |
+| `afirma-bridge` | Local `afirma://` protocol server so portals detect the client. |
 
 ## Installation
 

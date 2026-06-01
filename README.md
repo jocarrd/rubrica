@@ -28,6 +28,7 @@ buena experiencia de uso y un empaquetado que simplemente funciona.
 | `rubrica-core` | Núcleo de firma y validación. Toda la lógica, sin interfaz. |
 | `rubrica-cli` | Interfaz de línea de comandos sobre el núcleo. |
 | `rubrica-gui` | Interfaz web local servida por el propio binario. |
+| `afirma-bridge` | Servidor local del protocolo `afirma://` para que las sedes detecten el cliente. |
 
 ## Instalación
 

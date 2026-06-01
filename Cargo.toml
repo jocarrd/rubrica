@@ -4,6 +4,7 @@ members = [
     "crates/rubrica-core",
     "crates/rubrica-cli",
     "crates/rubrica-gui",
+    "crates/afirma-bridge",
     "spike",
 ]
 

@@ -1,0 +1,18 @@
+[package]
+name = "afirma-bridge"
+version = "0.1.0"
+description = "Puente del protocolo afirma:// de las sedes electrónicas hacia el núcleo de Rúbrica"
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[[bin]]
+name = "afirma-bridge"
+path = "src/main.rs"
+
+[dependencies]
+rubrica-core = { path = "../rubrica-core" }
+tungstenite = "0.24"
+anyhow.workspace = true

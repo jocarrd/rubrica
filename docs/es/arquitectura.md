@@ -70,8 +70,10 @@ invoca el protocolo de AutoFirma, que tiene dos mecanismos:
 - levanta un servidor local en `127.0.0.1` que habla un protocolo JSON con comandos
   (`sign`, `cosign`, `batch`; parámetros en base64).
 
-La compatibilidad con ese protocolo se construye a partir de su especificación
-pública; no se porta código de `clienteafirma`.
+El crate `afirma-bridge` implementa ese servidor WebSocket local: responde al
+handshake de detección (`echo=` → `OK`) que usan las sedes para localizar el
+cliente de firma. La compatibilidad con ese protocolo se construye a partir de su
+especificación pública; no se porta código de `clienteafirma`.
 
 ## Empaquetado
 
