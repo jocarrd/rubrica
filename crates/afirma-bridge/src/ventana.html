@@ -93,6 +93,7 @@
 
     <input type="password" id="pass" placeholder="Contraseña del certificado" autocomplete="off">
     <button id="firmar" disabled>Firmar</button>
+    <div id="msg" style="margin-top:12px;font-size:13px;display:none;padding:10px 12px;border-radius:10px;"></div>
 
     <details>
       <summary>Detalle técnico</summary>
@@ -120,9 +121,21 @@
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ certificado: elegido, password: document.getElementById('pass').value }),
     }).then((r) => r.json()).then((d) => {
-      btn.textContent = d.ok ? 'Firmado ✓' : 'Error al firmar';
-      btn.style.background = d.ok ? '#14773c' : '#b42318';
-    }).catch(() => { btn.textContent = 'Error de conexión'; btn.style.background = '#b42318'; });
+      const msg = document.getElementById('msg');
+      btn.textContent = d.ok ? 'Firmado ✓' : 'Firmar';
+      btn.style.background = d.ok ? '#14773c' : '';
+      btn.disabled = d.ok;
+      msg.style.display = 'block';
+      msg.textContent = d.mensaje || d.error || (d.ok ? 'Firmado' : 'Error desconocido');
+      msg.style.background = d.ok ? '#e7f6ec' : '#fdecec';
+      msg.style.color = d.ok ? '#14773c' : '#b42318';
+    }).catch((e) => {
+      const msg = document.getElementById('msg');
+      msg.style.display = 'block';
+      msg.textContent = 'Error de conexión: ' + e;
+      msg.style.background = '#fdecec'; msg.style.color = '#b42318';
+      btn.textContent = 'Firmar'; btn.disabled = false;
+    });
   });
 </script>
 </body>

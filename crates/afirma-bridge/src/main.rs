@@ -87,9 +87,38 @@ fn mostrar_ventana(
 
 fn leer_peticion(stream: &mut std::net::TcpStream) -> String {
     use std::io::Read;
+    let mut datos = Vec::new();
     let mut buf = [0u8; 8192];
-    let n = stream.read(&mut buf).unwrap_or(0);
-    String::from_utf8_lossy(&buf[..n]).into_owned()
+    loop {
+        let n = match stream.read(&mut buf) {
+            Ok(0) | Err(_) => break,
+            Ok(n) => n,
+        };
+        datos.extend_from_slice(&buf[..n]);
+
+        if let Some(pos) = encontrar_fin_cabeceras(&datos) {
+            let content_length = cabecera_content_length(&datos[..pos]);
+            let cuerpo_actual = datos.len() - (pos + 4);
+            if cuerpo_actual >= content_length {
+                break;
+            }
+        }
+    }
+    String::from_utf8_lossy(&datos).into_owned()
+}
+
+fn encontrar_fin_cabeceras(datos: &[u8]) -> Option<usize> {
+    datos.windows(4).position(|w| w == b"\r\n\r\n")
+}
+
+fn cabecera_content_length(cabeceras: &[u8]) -> usize {
+    let texto = String::from_utf8_lossy(cabeceras);
+    for linea in texto.lines() {
+        if let Some(v) = linea.to_ascii_lowercase().strip_prefix("content-length:") {
+            return v.trim().parse().unwrap_or(0);
+        }
+    }
+    0
 }
 
 fn responder(stream: &mut std::net::TcpStream, tipo: &str, cuerpo: &str) {
