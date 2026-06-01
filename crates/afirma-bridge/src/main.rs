@@ -268,21 +268,23 @@ fn handle(message: &str) -> String {
 }
 
 fn process_operation(message: &str) -> String {
-    let invocation = protocol::parse(message);
-    let proveedor = proveedores::para_esquema(message);
-    let solicitud = proveedor.preparar(&invocation);
-
-    log_invocation(&format!(
-        "operación por WebSocket: {} ({} bytes)\n",
-        invocation.operation,
-        solicitud.documento.as_ref().map_or(0, |d| d.len())
-    ));
-    mostrar_ventana(
-        proveedor.as_ref(),
-        &solicitud,
-        "Operación recibida por WebSocket",
-    );
-    "OK".to_string()
+    let mensaje = message.to_string();
+    std::thread::spawn(move || {
+        let invocation = protocol::parse(&mensaje);
+        let proveedor = proveedores::para_esquema(&mensaje);
+        let solicitud = proveedor.preparar(&invocation);
+        log_invocation(&format!(
+            "operación por WebSocket: {} ({} bytes)\n",
+            invocation.operation,
+            solicitud.documento.as_ref().map_or(0, |d| d.len())
+        ));
+        mostrar_ventana(
+            proveedor.as_ref(),
+            &solicitud,
+            "Operación recibida por WebSocket",
+        );
+    });
+    "#wait".to_string()
 }
 
 #[cfg(test)]
